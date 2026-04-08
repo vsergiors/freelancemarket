@@ -357,6 +357,7 @@
     const actions = document.getElementById('profile-actions');
     if (currentUser?.id === p.id) {
       actions.innerHTML = `
+        <a href="recu.html" class="btn btn-primary btn-sm">Cambiar Contraseña</a>
         <button class="btn btn-ghost btn-sm" onclick="openEdit()">✏️ Editar perfil</button>
         <a href="my-services.html" class="btn btn-primary btn-sm">Mis servicios</a>
       `;
