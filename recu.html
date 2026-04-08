@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Reset Password</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0b0b1a;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.container {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 40px;
+  border-radius: 16px;
+  width: 350px;
+  text-align: center;
+  backdrop-filter: blur(10px);
+}
+
+h2 {
+  margin-bottom: 20px;
+  font-size: 22px;
+}
+
+input {
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  border-radius: 10px;
+  border: none;
+  outline: none;
+  background: #1a1a2e;
+  color: white;
+}
+
+button {
+  margin-top: 20px;
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #7c4dff, #ff4da6);
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+button:hover {
+  opacity: 0.85;
+}
+
+.status {
+  margin-top: 15px;
+  font-size: 14px;
+  opacity: 0.8;
+}
+</style>
+
+</head>
+<body>
+
+<div class="container">
+  <h2>Cambiar contraseña</h2>
+
+  <input type="password" id="password" placeholder="Nueva contraseña">
+  <button onclick="resetPassword()">Actualizar</button>
+
+  <div class="status" id="status"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+const SUPABASE_URL = "https://TU_PROJECT_ID.supabase.co"; // 👈 CAMBIA ESTO
+const SUPABASE_ANON_KEY = "TU_ANON_KEY"; // 👈 CAMBIA ESTO
+
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// 🔥 Leer token del email
+const hash = window.location.hash.substring(1);
+const params = new URLSearchParams(hash);
+
+const access_token = params.get("access_token");
+const refresh_token = params.get("refresh_token");
+
+// Crear sesión automáticamente
+if (access_token && refresh_token) {
+  client.auth.setSession({
+    access_token,
+    refresh_token
+  });
+}
+
+// Cambiar contraseña
+async function resetPassword() {
+  const password = document.getElementById("password").value;
+  const status = document.getElementById("status");
+
+  if (password.length < 6) {
+    status.innerText = "Mínimo 6 caracteres";
+    return;
+  }
+
+  const { error } = await client.auth.updateUser({
+    password: password
+  });
+
+  if (error) {
+    status.innerText = "Error: " + error.message;
+  } else {
+    status.innerText = "Contraseña actualizada ✅";
+    setTimeout(() => {
+      window.location.href = "/";
+    }, 1500);
+  }
+}
+</script>
+
+</body>
+</html>
