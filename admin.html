@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin — FreelanceMarket</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #07070d; --surface: #0f0f18; --surface2: #181825; --surface3: #1e1e2e;
+      --border: #252535; --accent: #7c5cfc; --accent2: #fc5c7d;
+      --accent-glow: rgba(124,92,252,0.2); --text: #e8e8f8; --text-muted: #6666888;
+      --success: #22d3a0; --warning: #fbbf24; --danger: #ff4d6d;
+      --danger-glow: rgba(255,77,109,0.2);
+      --font-display: 'Syne', sans-serif; --font-body: 'DM Sans', sans-serif;
+      --sidebar-w: 220px; --radius: 12px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-body); display: flex; min-height: 100vh; overflow: hidden; }
+
+    /* ACCESS DENIED */
+    .access-denied {
+      display: none; position: fixed; inset: 0; background: var(--bg);
+      flex-direction: column; align-items: center; justify-content: center;
+      gap: 1rem; z-index: 999;
+    }
+    .access-denied.show { display: flex; }
+    .access-denied .icon { font-size: 4rem; }
+    .access-denied h1 { font-family: var(--font-display); font-size: 2rem; color: var(--danger); }
+    .access-denied p { color: var(--text-muted); }
+    .access-denied a { color: var(--accent); text-decoration: none; }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: var(--sidebar-w); background: var(--surface);
+      border-right: 1px solid var(--border);
+      position: fixed; top: 0; left: 0; height: 100vh;
+      display: flex; flex-direction: column;
+      overflow-y: auto; z-index: 50;
+    }
+    .sidebar::-webkit-scrollbar { width: 0; }
+    .sidebar-brand {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand-label {
+      font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase;
+      color: var(--danger); font-weight: 700; margin-bottom: 0.3rem;
+    }
+    .brand-name {
+      font-family: var(--font-display); font-size: 1.1rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .sidebar-section { padding: 1.2rem 1rem 0.3rem; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); }
+    .nav-item {
+      display: flex; align-items: center; gap: 0.7rem;
+      padding: 0.65rem 1.2rem; color: var(--text-muted);
+      text-decoration: none; font-size: 0.875rem; font-weight: 500;
+      transition: all 0.18s; cursor: pointer; border: none; background: none; width: 100%;
+      border-left: 3px solid transparent;
+    }
+    .nav-item:hover { color: var(--text); background: var(--surface2); }
+    .nav-item.active { color: var(--accent); background: rgba(124,92,252,0.08); border-left-color: var(--accent); }
+    .nav-item .ni { width: 18px; text-align: center; font-size: 0.95rem; }
+    .nav-item .count {
+      margin-left: auto; background: var(--surface3); color: var(--text-muted);
+      font-size: 0.7rem; padding: 1px 7px; border-radius: 20px;
+    }
+    .sidebar-footer {
+      margin-top: auto; padding: 1.2rem; border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 0.75rem;
+    }
+    .owner-badge {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      background: linear-gradient(135deg, rgba(252,92,125,0.2), rgba(124,92,252,0.2));
+      border: 1px solid rgba(252,92,125,0.4); color: var(--accent2);
+      font-size: 0.72rem; font-weight: 700; padding: 0.25rem 0.6rem; border-radius: 20px;
+    }
+    .logout-btn { margin-left: auto; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem; }
+    .logout-btn:hover { color: var(--danger); }
+
+    /* MAIN */
+    .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    /* TOPBAR */
+    .topbar {
+      padding: 1rem 2rem; border-bottom: 1px solid var(--border);
+      background: var(--surface); display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .topbar-title { font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; }
+    .topbar-search {
+      display: flex; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; overflow: hidden; flex: 1; max-width: 320px; margin: 0 1.5rem;
+    }
+    .topbar-search input {
+      flex: 1; background: none; border: none; outline: none;
+      color: var(--text); font-family: var(--font-body); font-size: 0.85rem; padding: 0.5rem 0.9rem;
+    }
+    .topbar-search input::placeholder { color: var(--text-muted); }
+
+    /* CONTENT */
+    .content { flex: 1; overflow-y: auto; padding: 1.75rem 2rem; }
+
+    /* STATS */
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem 1.5rem;
+      position: relative; overflow: hidden;
+    }
+    .stat-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+    }
+    .stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.5rem; }
+    .stat-value { font-family: var(--font-display); font-size: 2rem; font-weight: 800; }
+    .stat-icon { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); font-size: 2rem; opacity: 0.08; }
+
+    /* SECTION */
+    .section { margin-bottom: 2rem; }
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;
+    }
+    .section-title { font-family: var(--font-display); font-size: 0.95rem; font-weight: 700; }
+
+    /* TABLE */
+    .table-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: var(--surface2); border-bottom: 1px solid var(--border); }
+    th {
+      padding: 0.75rem 1rem; text-align: left;
+      font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--text-muted); font-weight: 600; white-space: nowrap;
+    }
+    td { padding: 0.85rem 1rem; font-size: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.03); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.015); }
+    .td-muted { color: var(--text-muted); font-size: 0.8rem; }
+    .td-mono { font-family: monospace; font-size: 0.78rem; color: var(--text-muted); }
+
+    /* BADGES */
+    .badge {
+      display: inline-flex; align-items: center; gap: 0.25rem;
+      padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.72rem; font-weight: 600;
+    }
+    .badge-owner { background: rgba(252,92,125,0.15); color: var(--accent2); border: 1px solid rgba(252,92,125,0.3); }
+    .badge-user { background: rgba(124,92,252,0.1); color: var(--accent); border: 1px solid rgba(124,92,252,0.2); }
+    .badge-active { background: rgba(34,211,160,0.1); color: var(--success); }
+    .badge-pending { background: rgba(251,191,36,0.1); color: var(--warning); }
+    .badge-done { background: rgba(34,211,160,0.1); color: var(--success); }
+    .badge-draft { background: var(--surface2); color: var(--text-muted); }
+
+    /* ACTIONS */
+    .action-btns { display: flex; gap: 0.4rem; align-items: center; }
+    .action-btn {
+      padding: 0.3rem 0.7rem; border-radius: 6px; font-size: 0.78rem;
+      font-family: var(--font-body); cursor: pointer; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text-muted); transition: all 0.18s;
+    }
+    .action-btn:hover { color: var(--text); border-color: var(--accent); }
+    .action-btn.danger { border-color: rgba(255,77,109,0.3); color: var(--danger); background: rgba(255,77,109,0.06); }
+    .action-btn.danger:hover { background: rgba(255,77,109,0.15); border-color: var(--danger); }
+
+    /* USER AVATAR */
+    .user-cell { display: flex; align-items: center; gap: 0.7rem; }
+    .u-avatar {
+      width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; font-weight: 700; color: #fff;
+    }
+    .u-name { font-weight: 500; }
+    .u-email { font-size: 0.75rem; color: var(--text-muted); }
+
+    /* MODAL */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(6px);
+      z-index: 200; align-items: center; justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 2rem; max-width: 460px; width: 90%;
+      animation: modalIn 0.2s ease;
+    }
+    @keyframes modalIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .modal-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+    .modal-title { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .modal-text { color: var(--text-muted); font-size: 0.88rem; line-height: 1.6; margin-bottom: 1.5rem; }
+    .modal-text strong { color: var(--text); }
+    .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
+    .modal-btn {
+      padding: 0.6rem 1.4rem; border-radius: 8px; font-family: var(--font-body);
+      font-size: 0.88rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.18s;
+    }
+    .modal-btn.cancel { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+    .modal-btn.cancel:hover { color: var(--text); }
+    .modal-btn.confirm-delete { background: var(--danger); color: #fff; box-shadow: 0 4px 16px var(--danger-glow); }
+    .modal-btn.confirm-delete:hover { opacity: 0.88; }
+
+    /* DETAIL PANEL */
+    .detail-panel {
+      display: none; position: fixed; right: 0; top: 0; bottom: 0;
+      width: 380px; background: var(--surface); border-left: 1px solid var(--border);
+      z-index: 100; overflow-y: auto; padding: 1.5rem;
+      animation: slideIn 0.25s ease;
+    }
+    .detail-panel.show { display: block; }
+    @keyframes slideIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .detail-close {
+      position: absolute; top: 1rem; right: 1rem;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text-muted); width: 30px; height: 30px; border-radius: 8px;
+      cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; justify-content: center;
+    }
+    .detail-close:hover { color: var(--text); }
+    .detail-title { font-family: var(--font-display); font-size: 1rem; font-weight: 700; margin-bottom: 1.25rem; padding-right: 2rem; }
+    .detail-row { display: flex; flex-direction: column; gap: 0.2rem; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-key { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+    .detail-val { font-size: 0.88rem; word-break: break-all; }
+
+    /* TABS */
+    .tab-row { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
+    .tab {
+      padding: 0.65rem 1.2rem; font-size: 0.85rem; font-weight: 500;
+      color: var(--text-muted); cursor: pointer; transition: all 0.18s;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* EMPTY */
+    .empty-row td { text-align: center; padding: 3rem; color: var(--text-muted); }
+    .empty-row .empty-icon { font-size: 2rem; display: block; margin-bottom: 0.5rem; }
+
+    /* TOAST */
+    .toast {
+      position: fixed; bottom: 2rem; right: 2rem; z-index: 999;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.85rem 1.2rem;
+      display: flex; align-items: center; gap: 0.75rem;
+      font-size: 0.88rem; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      transform: translateY(20px); opacity: 0;
+      transition: all 0.3s; pointer-events: none;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-color: rgba(34,211,160,0.4); }
+    .toast.error { border-color: rgba(255,77,109,0.4); }
+
+    @media (max-width: 1100px) { .stats-grid { grid-template-columns: repeat(2,1fr); } }
+    @media (max-width: 768px) { .sidebar { display: none; } .main { margin-left: 0; } }
+  </style>
+</head>
+<body>
+
+<!-- ACCESS DENIED -->
+<div class="access-denied" id="accessDenied">
+  <div class="icon">🔒</div>
+  <h1>Acceso denegado</h1>
+  <p>No tienes permisos para ver esta página.</p>
+  <a href="dashboard.html">← Volver al panel</a>
+</div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar" style="display:none">
+  <div class="sidebar-brand">
+    <div class="brand-label">⚡ Panel Admin</div>
+    <div class="brand-name">FreelanceMarket</div>
+  </div>
+
+  <div class="sidebar-section">Gestión</div>
+  <button class="nav-item active" onclick="showTab('users')" id="tab-users">
+    <span class="ni">👥</span> Usuarios <span class="count" id="cnt-users">—</span>
+  </button>
+  <button class="nav-item" onclick="showTab('services')" id="tab-services">
+    <span class="ni">📦</span> Servicios <span class="count" id="cnt-services">—</span>
+  </button>
+  <button class="nav-item" onclick="showTab('orders')" id="tab-orders">
+    <span class="ni">📋</span> Pedidos <span class="count" id="cnt-orders">—</span>
+  </button>
+  <button class="nav-item" onclick="showTab('conversations')" id="tab-conversations">
+    <span class="ni">💬</span> Conversaciones <span class="count" id="cnt-conversations">—</span>
+  </button>
+  <button class="nav-item" onclick="showTab('messages')" id="tab-messages">
+    <span class="ni">✉️</span> Mensajes <span class="count" id="cnt-messages">—</span>
+  </button>
+
+  <div class="sidebar-section">Sistema</div>
+  <a class="nav-item" href="dashboard.html"><span class="ni">🏠</span> Ir al panel</a>
+  <a class="nav-item" href="explore.html"><span class="ni">🔍</span> Explorar</a>
+
+  <div class="sidebar-footer">
+    <span class="owner-badge">👑 Owner</span>
+    <span id="adminName" style="font-size:0.82rem;color:var(--text-muted)"></span>
+    <button class="logout-btn" onclick="logout()" title="Cerrar sesión">⏻</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main" id="mainContent" style="display:none">
+  <div class="topbar">
+    <div class="topbar-title" id="pageTitle">Usuarios</div>
+    <div class="topbar-search">
+      <input type="text" id="searchInput" placeholder="Buscar..." oninput="handleSearch()"/>
+    </div>
+    <div style="display:flex;gap:0.5rem;align-items:center">
+      <span style="font-size:0.78rem;color:var(--text-muted)" id="lastRefresh"></span>
+      <button class="action-btn" onclick="refreshCurrent()">↻ Actualizar</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- STATS -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Usuarios totales</div>
+        <div class="stat-value" id="s-users">—</div>
+        <div class="stat-icon">👥</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Servicios activos</div>
+        <div class="stat-value" id="s-services">—</div>
+        <div class="stat-icon">📦</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Pedidos totales</div>
+        <div class="stat-value" id="s-orders">—</div>
+        <div class="stat-icon">📋</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Mensajes enviados</div>
+        <div class="stat-value" id="s-messages">—</div>
+        <div class="stat-icon">✉️</div>
+      </div>
+    </div>
+
+    <!-- TABLE AREA -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title" id="tableTitle">Todos los usuarios</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"><tr class="empty-row"><td><span class="empty-icon">⏳</span>Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL PANEL -->
+<div class="detail-panel" id="detailPanel">
+  <button class="detail-close" onclick="closeDetail()">✕</button>
+  <div class="detail-title" id="detailTitle">Detalles</div>
+  <div id="detailContent"></div>
+</div>
+
+<!-- DELETE MODAL -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal">
+    <div class="modal-icon">🗑️</div>
+    <div class="modal-title" id="modalTitle">¿Eliminar?</div>
+    <div class="modal-text" id="modalText"></div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeModal()">Cancelar</button>
+      <button class="modal-btn confirm-delete" onclick="confirmDelete()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+const sb = getSupabaseClient();
+let currentUser = null;
+let currentTab = 'users';
+let deleteTarget = null;
+let searchTerm = '';
+let allData = { users: [], services: [], orders: [], conversations: [], messages: [] };
+
+// ── INIT ──
+async function init() {
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) { window.location.href = 'login.html'; return; }
+  currentUser = user;
+
+  // Check owner rank
+  const { data: profile } = await sb.from('profiles').select('rank, username').eq('id', user.id).single();
+  if (!profile || profile.rank !== 'owner') {
+    document.getElementById('accessDenied').classList.add('show');
+    return;
+  }
+
+  document.getElementById('adminName').textContent = profile.username || user.email?.split('@')[0];
+  document.getElementById('sidebar').style.display = 'flex';
+  document.getElementById('mainContent').style.display = 'flex';
+
+  await loadStats();
+  await loadTab('users');
+}
+
+// ── STATS ──
+async function loadStats() {
+  const [
+    { count: uc }, { count: sc }, { count: oc }, { count: mc }
+  ] = await Promise.all([
+    sb.from('profiles').select('*', { count: 'exact', head: true }),
+    sb.from('services').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+    sb.from('orders').select('*', { count: 'exact', head: true }),
+    sb.from('messages').select('*', { count: 'exact', head: true }),
+  ]);
+  document.getElementById('s-users').textContent = uc || 0;
+  document.getElementById('s-services').textContent = sc || 0;
+  document.getElementById('s-orders').textContent = oc || 0;
+  document.getElementById('s-messages').textContent = mc || 0;
+  document.getElementById('cnt-users').textContent = uc || 0;
+  document.getElementById('cnt-services').textContent = sc || 0;
+  document.getElementById('cnt-orders').textContent = oc || 0;
+  document.getElementById('cnt-messages').textContent = mc || 0;
+}
+
+// ── TABS ──
+function showTab(tab) {
+  currentTab = tab;
+  searchTerm = '';
+  document.getElementById('searchInput').value = '';
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  document.getElementById('tab-' + tab)?.classList.add('active');
+  closeDetail();
+  loadTab(tab);
+}
+
+async function loadTab(tab) {
+  const titles = { users: 'Todos los usuarios', services: 'Todos los servicios', orders: 'Todos los pedidos', conversations: 'Todas las conversaciones', messages: 'Todos los mensajes' };
+  document.getElementById('pageTitle').textContent = { users:'Usuarios', services:'Servicios', orders:'Pedidos', conversations:'Conversaciones', messages:'Mensajes' }[tab];
+  document.getElementById('tableTitle').textContent = titles[tab];
+  document.getElementById('tableBody').innerHTML = '<tr class="empty-row"><td><span class="empty-icon">⏳</span>Cargando...</td></tr>';
+
+  if (tab === 'users') await loadUsers();
+  else if (tab === 'services') await loadServices();
+  else if (tab === 'orders') await loadOrders();
+  else if (tab === 'conversations') await loadConversations();
+  else if (tab === 'messages') await loadMessages();
+
+  document.getElementById('lastRefresh').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es', {hour:'2-digit',minute:'2-digit'});
+}
+
+function refreshCurrent() { loadTab(currentTab); }
+function handleSearch() { searchTerm = document.getElementById('searchInput').value.toLowerCase(); renderFiltered(); }
+
+function renderFiltered() {
+  const data = allData[currentTab];
+  if (currentTab === 'users') renderUsersTable(filterData(data, ['username','email']));
+  else if (currentTab === 'services') renderServicesTable(filterData(data, ['title','category']));
+  else if (currentTab === 'orders') renderOrdersTable(filterData(data, ['status','amount']));
+  else if (currentTab === 'conversations') renderConversationsTable(data);
+  else if (currentTab === 'messages') renderMessagesTable(filterData(data, ['content']));
+}
+
+function filterData(arr, keys) {
+  if (!searchTerm) return arr;
+  return arr.filter(item => keys.some(k => String(item[k] || '').toLowerCase().includes(searchTerm)));
+}
+
+// ── USERS ──
+async function loadUsers() {
+  const { data } = await sb.from('profiles').select('*').order('created_at', { ascending: false });
+  allData.users = data || [];
+  renderUsersTable(data || []);
+}
+
+function renderUsersTable(data) {
+  document.getElementById('tableHead').innerHTML = `<tr>
+    <th>Usuario</th><th>Email</th><th>Rango</th><th>Registro</th><th>Acciones</th>
+  </tr>`;
+  if (!data.length) { emptyTable('No hay usuarios'); return; }
+  document.getElementById('tableBody').innerHTML = data.map(u => `
+    <tr>
+      <td><div class="user-cell">
+        <div class="u-avatar">${(u.username||'U').substring(0,2).toUpperCase()}</div>
+        <div><div class="u-name">${esc(u.username || '—')}</div><div class="u-email">${esc(u.id)}</div></div>
+      </div></td>
+      <td class="td-muted">${esc(u.email || '—')}</td>
+      <td><span class="badge ${u.rank==='owner'?'badge-owner':'badge-user'}">${u.rank==='owner'?'👑 Owner':'👤 User'}</span></td>
+      <td class="td-muted">${fmtDate(u.created_at)}</td>
+      <td><div class="action-btns">
+        <button class="action-btn" onclick='showUserDetail(${JSON.stringify(u)})'>Ver</button>
+        <button class="action-btn danger" onclick='askDelete("user","${u.id}","${esc(u.username||u.email)}")'>Eliminar</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+function showUserDetail(u) {
+  document.getElementById('detailTitle').textContent = '👤 ' + (u.username || 'Usuario');
+  document.getElementById('detailContent').innerHTML = `
+    <div class="detail-row"><div class="detail-key">ID</div><div class="detail-val td-mono">${u.id}</div></div>
+    <div class="detail-row"><div class="detail-key">Username</div><div class="detail-val">${esc(u.username||'—')}</div></div>
+    <div class="detail-row"><div class="detail-key">Email</div><div class="detail-val">${esc(u.email||'—')}</div></div>
+    <div class="detail-row"><div class="detail-key">Rango</div><div class="detail-val"><span class="badge ${u.rank==='owner'?'badge-owner':'badge-user'}">${u.rank||'user'}</span></div></div>
+    <div class="detail-row"><div class="detail-key">Registrado</div><div class="detail-val">${fmtDate(u.created_at)}</div></div>
+    <div class="detail-row"><div class="detail-key">Descripción</div><div class="detail-val">${esc(u.bio||'Sin bio')}</div></div>
+    <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap">
+      <button class="action-btn" onclick="loadUserServices('${u.id}')">Ver servicios</button>
+      <button class="action-btn" onclick="loadUserOrders('${u.id}')">Ver pedidos</button>
+      <button class="action-btn danger" onclick='askDelete("user","${u.id}","${esc(u.username||u.email)}")'>Eliminar cuenta</button>
+    </div>
+    <div id="userExtra" style="margin-top:1rem"></div>`;
+  document.getElementById('detailPanel').classList.add('show');
+}
+
+async function loadUserServices(uid) {
+  const { data } = await sb.from('services').select('*').eq('user_id', uid);
+  const el = document.getElementById('userExtra');
+  el.innerHTML = `<div style="font-family:var(--font-display);font-size:0.85rem;font-weight:700;margin-bottom:0.75rem">Servicios (${data?.length||0})</div>` +
+    (data?.length ? data.map(s => `<div style="padding:0.5rem 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:0.82rem">${esc(s.title)}</span>
+      <button class="action-btn danger" onclick='askDelete("service","${s.id}","${esc(s.title)}")' style="font-size:0.72rem">Borrar</button>
+    </div>`).join('') : '<div style="color:var(--text-muted);font-size:0.82rem">Sin servicios</div>');
+}
+
+async function loadUserOrders(uid) {
+  const { data } = await sb.from('orders').select('*, services(title)').or(`buyer_id.eq.${uid},seller_id.eq.${uid}`);
+  const el = document.getElementById('userExtra');
+  el.innerHTML = `<div style="font-family:var(--font-display);font-size:0.85rem;font-weight:700;margin-bottom:0.75rem">Pedidos (${data?.length||0})</div>` +
+    (data?.length ? data.map(o => `<div style="padding:0.5rem 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:0.82rem">${esc(o.services?.title||'Pedido')} — €${o.amount}</span>
+      <span class="badge ${o.status==='in_progress'?'badge-active':o.status==='completed'?'badge-done':'badge-pending'}" style="font-size:0.68rem">${o.status}</span>
+    </div>`).join('') : '<div style="color:var(--text-muted);font-size:0.82rem">Sin pedidos</div>');
+}
+
+// ── SERVICES ──
+async function loadServices() {
+  const { data } = await sb.from('services').select('*, profiles(username)').order('created_at', { ascending: false });
+  allData.services = data || [];
+  renderServicesTable(data || []);
+}
+
+function renderServicesTable(data) {
+  document.getElementById('tableHead').innerHTML = `<tr>
+    <th>Servicio</th><th>Vendedor</th><th>Categoría</th><th>Precio</th><th>Estado</th><th>Acciones</th>
+  </tr>`;
+  if (!data.length) { emptyTable('No hay servicios'); return; }
+  document.getElementById('tableBody').innerHTML = data.map(s => `
+    <tr>
+      <td><div style="display:flex;align-items:center;gap:0.6rem">
+        <span style="font-size:1.2rem">${s.cover_emoji||'📦'}</span>
+        <span style="font-weight:500;font-size:0.85rem">${esc(s.title)}</span>
+      </div></td>
+      <td class="td-muted">${esc(s.profiles?.username||'—')}</td>
+      <td class="td-muted">${esc(s.category||'—')}</td>
+      <td><span style="color:var(--accent);font-weight:700;font-family:var(--font-display)">€${s.price_from}</span></td>
+      <td><span class="badge ${s.status==='active'?'badge-active':'badge-draft'}">${s.status==='active'?'Activo':'Borrador'}</span></td>
+      <td><div class="action-btns">
+        <button class="action-btn" onclick='showServiceDetail(${JSON.stringify(s).replace(/'/g,"&#39;")})'>Ver</button>
+        <button class="action-btn danger" onclick='askDelete("service","${s.id}","${esc(s.title)}")'>Eliminar</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+function showServiceDetail(s) {
+  document.getElementById('detailTitle').textContent = (s.cover_emoji||'📦') + ' ' + s.title;
+  document.getElementById('detailContent').innerHTML = `
+    <div class="detail-row"><div class="detail-key">ID</div><div class="detail-val td-mono">${s.id}</div></div>
+    <div class="detail-row"><div class="detail-key">Título</div><div class="detail-val">${esc(s.title)}</div></div>
+    <div class="detail-row"><div class="detail-key">Descripción</div><div class="detail-val">${esc(s.description||'—')}</div></div>
+    <div class="detail-row"><div class="detail-key">Categoría</div><div class="detail-val">${esc(s.category||'—')}</div></div>
+    <div class="detail-row"><div class="detail-key">Precio desde</div><div class="detail-val">€${s.price_from}</div></div>
+    <div class="detail-row"><div class="detail-key">Estado</div><div class="detail-val"><span class="badge ${s.status==='active'?'badge-active':'badge-draft'}">${s.status}</span></div></div>
+    <div class="detail-row"><div class="detail-key">Valoración</div><div class="detail-val">★ ${s.rating||'—'} (${s.reviews_count||0} reseñas)</div></div>
+    <div class="detail-row"><div class="detail-key">Creado</div><div class="detail-val">${fmtDate(s.created_at)}</div></div>
+    <div style="margin-top:1rem">
+      <button class="action-btn danger" onclick='askDelete("service","${s.id}","${esc(s.title)}")'>🗑️ Eliminar servicio</button>
+    </div>`;
+  document.getElementById('detailPanel').classList.add('show');
+}
+
+// ── ORDERS ──
+async function loadOrders() {
+  const { data } = await sb.from('orders').select('*, services(title,cover_emoji), buyer:profiles!orders_buyer_id_fkey(username), seller:profiles!orders_seller_id_fkey(username)').order('created_at', { ascending: false });
+  allData.orders = data || [];
+  document.getElementById('cnt-orders').textContent = data?.length || 0;
+  renderOrdersTable(data || []);
+}
+
+function renderOrdersTable(data) {
+  document.getElementById('tableHead').innerHTML = `<tr>
+    <th>Servicio</th><th>Comprador</th><th>Vendedor</th><th>Importe</th><th>Estado</th><th>Fecha</th><th>Acciones</th>
+  </tr>`;
+  if (!data.length) { emptyTable('No hay pedidos'); return; }
+  document.getElementById('tableBody').innerHTML = data.map(o => `
+    <tr>
+      <td><div style="display:flex;align-items:center;gap:0.5rem">
+        <span>${o.services?.cover_emoji||'📋'}</span>
+        <span style="font-size:0.83rem">${esc(o.services?.title||'—')}</span>
+      </div></td>
+      <td class="td-muted">${esc(o.buyer?.username||'—')}</td>
+      <td class="td-muted">${esc(o.seller?.username||'—')}</td>
+      <td><span style="color:var(--accent);font-weight:700;font-family:var(--font-display)">€${o.amount}</span></td>
+      <td><span class="badge ${o.status==='in_progress'?'badge-active':o.status==='completed'?'badge-done':'badge-pending'}">${o.status}</span></td>
+      <td class="td-muted">${fmtDate(o.created_at)}</td>
+      <td><button class="action-btn danger" onclick='askDelete("order","${o.id}","pedido #${o.id.substring(0,8)}")'>Eliminar</button></td>
+    </tr>`).join('');
+}
+
+// ── CONVERSATIONS ──
+async function loadConversations() {
+  const { data } = await sb.from('conversations').select('*, user1:profiles!conversations_user1_id_fkey(username), user2:profiles!conversations_user2_id_fkey(username)').order('updated_at', { ascending: false });
+  allData.conversations = data || [];
+  document.getElementById('cnt-conversations').textContent = data?.length || 0;
+  renderConversationsTable(data || []);
+}
+
+function renderConversationsTable(data) {
+  document.getElementById('tableHead').innerHTML = `<tr>
+    <th>Participante 1</th><th>Participante 2</th><th>Última actividad</th><th>Acciones</th>
+  </tr>`;
+  if (!data.length) { emptyTable('No hay conversaciones'); return; }
+  document.getElementById('tableBody').innerHTML = data.map(c => `
+    <tr>
+      <td class="td-muted">${esc(c.user1?.username||'—')}</td>
+      <td class="td-muted">${esc(c.user2?.username||'—')}</td>
+      <td class="td-muted">${fmtDate(c.updated_at)}</td>
+      <td><div class="action-btns">
+        <button class="action-btn" onclick="showConvoMessages('${c.id}','${esc(c.user1?.username||'')}','${esc(c.user2?.username||'')}')">Ver mensajes</button>
+        <button class="action-btn danger" onclick='askDelete("conversation","${c.id}","conversación entre ${esc(c.user1?.username||'')} y ${esc(c.user2?.username||'')}")'>Eliminar</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+async function showConvoMessages(cid, u1, u2) {
+  document.getElementById('detailTitle').textContent = `💬 ${u1} ↔ ${u2}`;
+  document.getElementById('detailContent').innerHTML = '<div style="color:var(--text-muted);font-size:0.82rem">Cargando mensajes...</div>';
+  document.getElementById('detailPanel').classList.add('show');
+  const { data } = await sb.from('messages').select('*, sender:profiles!messages_sender_id_fkey(username)').eq('conversation_id', cid).order('created_at', { ascending: true });
+  document.getElementById('detailContent').innerHTML = (data?.length ? data.map(m => `
+    <div style="margin-bottom:0.75rem;padding-bottom:0.75rem;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;margin-bottom:0.3rem">
+        <span style="font-size:0.78rem;font-weight:600;color:var(--accent)">${esc(m.sender?.username||'—')}</span>
+        <span style="font-size:0.72rem;color:var(--text-muted)">${fmtDate(m.created_at)}</span>
+      </div>
+      <div style="font-size:0.85rem;line-height:1.5">${esc(m.content)}</div>
+      <button class="action-btn danger" onclick='askDelete("message","${m.id}","este mensaje")' style="margin-top:0.4rem;font-size:0.72rem">Borrar</button>
+    </div>`).join('') : '<div style="color:var(--text-muted);font-size:0.82rem">Sin mensajes</div>') +
+    `<button class="action-btn danger" onclick='askDelete("conversation","${cid}","esta conversación completa")' style="margin-top:0.5rem">🗑️ Borrar conversación entera</button>`;
+}
+
+// ── MESSAGES ──
+async function loadMessages() {
+  const { data } = await sb.from('messages').select('*, sender:profiles!messages_sender_id_fkey(username)').order('created_at', { ascending: false }).limit(200);
+  allData.messages = data || [];
+  renderMessagesTable(data || []);
+}
+
+function renderMessagesTable(data) {
+  document.getElementById('tableHead').innerHTML = `<tr>
+    <th>Remitente</th><th>Contenido</th><th>Leído</th><th>Fecha</th><th>Acciones</th>
+  </tr>`;
+  if (!data.length) { emptyTable('No hay mensajes'); return; }
+  document.getElementById('tableBody').innerHTML = data.map(m => `
+    <tr>
+      <td class="td-muted">${esc(m.sender?.username||'—')}</td>
+      <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.83rem">${esc(m.content)}</td>
+      <td>${m.read ? '<span style="color:var(--success)">✓</span>' : '<span style="color:var(--text-muted)">—</span>'}</td>
+      <td class="td-muted">${fmtDate(m.created_at)}</td>
+      <td><button class="action-btn danger" onclick='askDelete("message","${m.id}","este mensaje")'>Eliminar</button></td>
+    </tr>`).join('');
+}
+
+// ── DELETE ──
+function askDelete(type, id, label) {
+  const typeLabel = { user:'usuario', service:'servicio', order:'pedido', conversation:'conversación', message:'mensaje' };
+  document.getElementById('modalTitle').textContent = `Eliminar ${typeLabel[type]}`;
+  document.getElementById('modalText').innerHTML = `Vas a eliminar permanentemente el ${typeLabel[type]} <strong>${label}</strong>.<br/><br/>Esta acción <strong>no se puede deshacer</strong>.`;
+  deleteTarget = { type, id };
+  document.getElementById('deleteModal').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('deleteModal').classList.remove('show');
+  deleteTarget = null;
+}
+
+async function confirmDelete() {
+  if (!deleteTarget) return;
+  const { type, id } = deleteTarget;
+  const tableMap = { user:'profiles', service:'services', order:'orders', conversation:'conversations', message:'messages' };
+  const { error } = await sb.from(tableMap[type]).delete().eq('id', id);
+  closeModal();
+  if (error) { showToast('❌ Error al eliminar: ' + error.message, 'error'); return; }
+  showToast('✓ Eliminado correctamente', 'success');
+  closeDetail();
+  await loadStats();
+  await loadTab(currentTab);
+}
+
+// ── DETAIL ──
+function closeDetail() {
+  document.getElementById('detailPanel').classList.remove('show');
+}
+
+// ── HELPERS ──
+function emptyTable(msg) {
+  document.getElementById('tableBody').innerHTML = `<tr class="empty-row"><td><span class="empty-icon">🔍</span>${msg}</td></tr>`;
+}
+
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('es', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+async function logout() {
+  await sb.auth.signOut();
+  window.location.href = 'index.html';
+}
+
+init();
+</script>
+</body>
+</html>

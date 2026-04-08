@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Crear Servicio — FreelanceMarket</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0f; --surface: #13131a; --surface2: #1c1c28;
+      --border: #2a2a3a; --accent: #7c5cfc; --accent2: #fc5c7d;
+      --accent-glow: rgba(124,92,252,0.25); --text: #f0f0f8;
+      --text-muted: #8888a8; --success: #22d3a0; --error: #ff5252;
+      --font-display: 'Syne', sans-serif; --font-body: 'DM Sans', sans-serif;
+      --radius: 14px; --sidebar-w: 240px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-body); display: flex; min-height: 100vh; }
+
+    /* SIDEBAR (same as dashboard) */
+    .sidebar {
+      width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh;
+      padding: 1.5rem 0; z-index: 50;
+    }
+    .sidebar-logo {
+      font-family: var(--font-display); font-size: 1.2rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      padding: 0 1.5rem 1.5rem; border-bottom: 1px solid var(--border);
+      text-decoration: none; display: block;
+    }
+    .sidebar-nav { flex: 1; padding: 1rem 0; }
+    .nav-item {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.7rem 1.5rem; color: var(--text-muted);
+      text-decoration: none; font-size: 0.9rem; font-weight: 500;
+      transition: all 0.2s;
+    }
+    .nav-item:hover { color: var(--text); background: var(--surface2); }
+    .nav-item.active { color: var(--accent); background: rgba(124,92,252,0.1); border-right: 3px solid var(--accent); }
+    .nav-section { padding: 1.2rem 1.5rem 0.4rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+
+    /* MAIN */
+    .main { margin-left: var(--sidebar-w); flex: 1; }
+    .topbar {
+      padding: 1.2rem 2rem; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface);
+    }
+    .topbar-title { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; }
+    .content { padding: 2rem; max-width: 900px; }
+
+    /* STEPS INDICATOR */
+    .steps-indicator {
+      display: flex; gap: 0; margin-bottom: 2.5rem;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .step-item {
+      flex: 1; padding: 1rem; text-align: center;
+      font-size: 0.82rem; font-weight: 500; color: var(--text-muted);
+      position: relative;
+    }
+    .step-item.active { background: rgba(124,92,252,0.1); color: var(--accent); }
+    .step-item.done { color: var(--success); }
+    .step-item:not(:last-child)::after {
+      content: '→'; position: absolute; right: -8px; top: 50%; transform: translateY(-50%);
+      color: var(--border); font-size: 0.8rem; z-index: 1;
+    }
+    .step-num {
+      display: block; width: 24px; height: 24px; border-radius: 50%;
+      background: var(--surface2); margin: 0 auto 0.3rem;
+      font-size: 0.75rem; line-height: 24px;
+    }
+    .step-item.active .step-num { background: var(--accent); color: #fff; }
+    .step-item.done .step-num { background: var(--success); color: #fff; }
+
+    /* FORM SECTIONS */
+    .form-section { display: none; }
+    .form-section.active { display: block; }
+    .section-title { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .section-desc { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 2rem; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+    .form-grid.single { grid-template-columns: 1fr; }
+    .field { margin-bottom: 1.2rem; }
+    .field label {
+      display: block; font-size: 0.82rem; font-weight: 500;
+      color: var(--text-muted); margin-bottom: 0.5rem;
+    }
+    .field input, .field textarea, .field select {
+      width: 100%; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text); font-family: var(--font-body);
+      font-size: 0.92rem; padding: 0.75rem 1rem; outline: none;
+      transition: border-color 0.2s;
+    }
+    .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--accent); }
+    .field input::placeholder, .field textarea::placeholder { color: var(--text-muted); }
+    .field textarea { resize: vertical; min-height: 120px; }
+    .field select option { background: var(--surface2); }
+    .char-count { text-align: right; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.3rem; }
+    .hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.4rem; }
+
+    /* EMOJI PICKER */
+    .emoji-grid {
+      display: grid; grid-template-columns: repeat(8, 1fr); gap: 0.5rem; margin-bottom: 1rem;
+    }
+    .emoji-btn {
+      width: 48px; height: 48px; border-radius: 10px;
+      background: var(--surface); border: 2px solid var(--border);
+      font-size: 1.4rem; cursor: pointer; transition: all 0.2s;
+    }
+    .emoji-btn:hover { border-color: var(--accent); transform: scale(1.1); }
+    .emoji-btn.selected { border-color: var(--accent); background: rgba(124,92,252,0.15); }
+
+    /* PACKAGES */
+    .packages-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    .package-card {
+      background: var(--surface); border: 2px solid var(--border);
+      border-radius: var(--radius); padding: 1.2rem;
+    }
+    .package-card.basic { border-color: rgba(34,211,160,0.3); }
+    .package-card.standard { border-color: rgba(124,92,252,0.3); }
+    .package-card.premium { border-color: rgba(252,92,125,0.3); }
+    .package-label {
+      font-family: var(--font-display); font-weight: 700; font-size: 0.85rem;
+      text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem;
+    }
+    .basic .package-label { color: var(--success); }
+    .standard .package-label { color: var(--accent); }
+    .premium .package-label { color: var(--accent2); }
+
+    /* TAGS */
+    .tags-container {
+      display: flex; flex-wrap: wrap; gap: 0.5rem;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.6rem; min-height: 48px;
+      cursor: text;
+    }
+    .tag {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      background: rgba(124,92,252,0.15); border: 1px solid rgba(124,92,252,0.3);
+      color: var(--accent); padding: 0.2rem 0.6rem; border-radius: 50px; font-size: 0.82rem;
+    }
+    .tag button { background: none; border: none; color: inherit; cursor: pointer; font-size: 0.7rem; }
+    .tags-input { border: none; background: none; color: var(--text); outline: none; font-family: var(--font-body); font-size: 0.9rem; min-width: 100px; }
+
+    /* PREVIEW */
+    .preview-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden; max-width: 300px;
+    }
+    .preview-img {
+      height: 160px; display: flex; align-items: center; justify-content: center;
+      font-size: 4rem; background: var(--surface);
+    }
+    .preview-body { padding: 1rem; }
+    .preview-title { font-size: 0.95rem; font-weight: 500; margin-bottom: 0.5rem; }
+    .preview-price { font-family: var(--font-display); font-weight: 700; color: var(--accent); }
+
+    /* NAVIGATION BUTTONS */
+    .form-nav { display: flex; gap: 1rem; margin-top: 2rem; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.7rem 1.5rem; border-radius: 50px; font-family: var(--font-body);
+      font-size: 0.9rem; font-weight: 500; cursor: pointer; border: none; transition: all 0.2s;
+    }
+    .btn-ghost { background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; box-shadow: 0 4px 16px var(--accent-glow); }
+    .btn-primary:hover { transform: translateY(-2px); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .msg { padding: 0.75rem 1rem; border-radius: 10px; font-size: 0.85rem; margin-top: 1rem; }
+    .msg.error { background: rgba(255,82,82,0.1); border: 1px solid rgba(255,82,82,0.3); color: var(--error); }
+    .msg.success { background: rgba(34,211,160,0.1); border: 1px solid rgba(34,211,160,0.3); color: var(--success); }
+
+    @media (max-width: 768px) {
+      .main { margin-left: 0; }
+      .sidebar { display: none; }
+      .packages-grid { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <a href="index.html" class="sidebar-logo">FreelanceMarket</a>
+  <nav class="sidebar-nav">
+    <div class="nav-section">Principal</div>
+    <a class="nav-item" href="dashboard.html"><span>🏠</span> Panel</a>
+    <a class="nav-item" href="explore.html"><span>🔍</span> Explorar</a>
+    <a class="nav-item" href="chat.html"><span>💬</span> Mensajes</a>
+    <div class="nav-section">Vendedor</div>
+    <a class="nav-item active" href="create-service.html"><span>➕</span> Crear servicio</a>
+    <a class="nav-item" href="my-services.html"><span>📦</span> Mis servicios</a>
+    <a class="nav-item" href="orders.html"><span>📋</span> Pedidos</a>
+    <div class="nav-section">Cuenta</div>
+    <a class="nav-item" href="profile.html"><span>👤</span> Mi perfil</a>
+  </nav>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">Crear nuevo servicio</div>
+    <a href="dashboard.html" style="color:var(--text-muted);text-decoration:none;font-size:0.85rem;">← Volver al panel</a>
+  </div>
+
+  <div class="content">
+    <!-- Steps -->
+    <div class="steps-indicator">
+      <div class="step-item active" id="step1Indicator">
+        <span class="step-num">1</span>Información
+      </div>
+      <div class="step-item" id="step2Indicator">
+        <span class="step-num">2</span>Paquetes
+      </div>
+      <div class="step-item" id="step3Indicator">
+        <span class="step-num">3</span>Descripción
+      </div>
+      <div class="step-item" id="step4Indicator">
+        <span class="step-num">4</span>Publicar
+      </div>
+    </div>
+
+    <!-- STEP 1: Basic info -->
+    <div class="form-section active" id="section1">
+      <div class="section-title">Información básica</div>
+      <p class="section-desc">Cuéntanos sobre tu servicio. Un buen título atrae más clientes.</p>
+
+      <div class="field">
+        <label>Título del servicio *</label>
+        <input type="text" id="titleInput" maxlength="80" placeholder="Ej: Diseñaré tu logo profesional en 24h"/>
+        <div class="char-count"><span id="titleCount">0</span>/80</div>
+      </div>
+
+      <div class="form-grid">
+        <div class="field">
+          <label>Categoría *</label>
+          <select id="categorySelect">
+            <option value="">Selecciona una categoría</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Subcategoría</label>
+          <input type="text" id="subcatInput" placeholder="Ej: Logo & Branding"/>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Portada del servicio (emoji)</label>
+        <div class="emoji-grid" id="emojiGrid"></div>
+        <p class="hint">Elige un emoji que represente tu servicio.</p>
+      </div>
+
+      <div class="form-nav">
+        <button class="btn btn-primary" onclick="nextStep(1)">Siguiente →</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: Packages -->
+    <div class="form-section" id="section2">
+      <div class="section-title">Paquetes y precios</div>
+      <p class="section-desc">Define qué incluye cada paquete y su precio.</p>
+
+      <div class="packages-grid">
+        <div class="package-card basic">
+          <div class="package-label">Básico</div>
+          <div class="field"><label>Nombre</label><input type="text" id="pkg1Name" placeholder="Ej: Inicio" value="Básico"/></div>
+          <div class="field"><label>Descripción</label><input type="text" id="pkg1Desc" placeholder="Lo esencial"/></div>
+          <div class="field"><label>Precio (€)</label><input type="number" id="pkg1Price" placeholder="9" min="1"/></div>
+          <div class="field"><label>Días de entrega</label><input type="number" id="pkg1Days" placeholder="3" min="1"/></div>
+          <div class="field"><label>Revisiones</label><input type="number" id="pkg1Rev" placeholder="1" min="0"/></div>
+        </div>
+        <div class="package-card standard">
+          <div class="package-label">Estándar</div>
+          <div class="field"><label>Nombre</label><input type="text" id="pkg2Name" placeholder="Ej: Profesional" value="Estándar"/></div>
+          <div class="field"><label>Descripción</label><input type="text" id="pkg2Desc" placeholder="Lo más popular"/></div>
+          <div class="field"><label>Precio (€)</label><input type="number" id="pkg2Price" placeholder="29" min="1"/></div>
+          <div class="field"><label>Días de entrega</label><input type="number" id="pkg2Days" placeholder="5" min="1"/></div>
+          <div class="field"><label>Revisiones</label><input type="number" id="pkg2Rev" placeholder="3" min="0"/></div>
+        </div>
+        <div class="package-card premium">
+          <div class="package-label">Premium</div>
+          <div class="field"><label>Nombre</label><input type="text" id="pkg3Name" placeholder="Ej: Élite" value="Premium"/></div>
+          <div class="field"><label>Descripción</label><input type="text" id="pkg3Desc" placeholder="La mejor opción"/></div>
+          <div class="field"><label>Precio (€)</label><input type="number" id="pkg3Price" placeholder="79" min="1"/></div>
+          <div class="field"><label>Días de entrega</label><input type="number" id="pkg3Days" placeholder="7" min="1"/></div>
+          <div class="field"><label>Revisiones</label><input type="number" id="pkg3Rev" placeholder="5" min="0"/></div>
+        </div>
+      </div>
+
+      <div class="form-nav">
+        <button class="btn btn-ghost" onclick="prevStep(2)">← Anterior</button>
+        <button class="btn btn-primary" onclick="nextStep(2)">Siguiente →</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: Description -->
+    <div class="form-section" id="section3">
+      <div class="section-title">Descripción y etiquetas</div>
+      <p class="section-desc">Explica detalladamente qué ofreces y añade etiquetas para ser más visible.</p>
+
+      <div class="field">
+        <label>Descripción del servicio *</label>
+        <textarea id="descInput" maxlength="1200" placeholder="Describe qué incluye tu servicio, por qué los clientes deben elegirte, tu experiencia...&#10;&#10;Ejemplo:&#10;Soy diseñador gráfico con más de 5 años de experiencia..."></textarea>
+        <div class="char-count"><span id="descCount">0</span>/1200</div>
+      </div>
+
+      <div class="field">
+        <label>Requisitos del cliente</label>
+        <textarea id="reqInput" placeholder="¿Qué necesitas que te proporcione el cliente?&#10;Ej: Nombre de empresa, colores preferidos, ejemplos de referencias..."></textarea>
+      </div>
+
+      <div class="field">
+        <label>Etiquetas (máx. 5)</label>
+        <div class="tags-container" id="tagsContainer" onclick="document.getElementById('tagInput').focus()">
+          <input type="text" id="tagInput" class="tags-input" placeholder="Escribe y pulsa Enter"/>
+        </div>
+        <p class="hint">Las etiquetas ayudan a los clientes a encontrar tu servicio.</p>
+      </div>
+
+      <div class="form-nav">
+        <button class="btn btn-ghost" onclick="prevStep(3)">← Anterior</button>
+        <button class="btn btn-primary" onclick="nextStep(3)">Siguiente →</button>
+      </div>
+    </div>
+
+    <!-- STEP 4: Publish -->
+    <div class="form-section" id="section4">
+      <div class="section-title">Vista previa y publicar</div>
+      <p class="section-desc">Así verán tu servicio los clientes. ¡Revísalo antes de publicar!</p>
+
+      <div style="display:grid;grid-template-columns:300px 1fr;gap:2rem;align-items:start;flex-wrap:wrap;">
+        <div class="preview-card">
+          <div class="preview-img" id="previewEmoji">🎨</div>
+          <div class="preview-body">
+            <div class="preview-title" id="previewTitle">Título del servicio</div>
+            <div class="preview-price" id="previewPrice">€0 <span style="font-size:0.75rem;color:var(--text-muted);font-family:var(--font-body)">/desde</span></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem;">Resumen del servicio:</div>
+          <div id="summaryList" style="display:flex;flex-direction:column;gap:0.6rem;font-size:0.9rem;"></div>
+        </div>
+      </div>
+
+      <div class="field" style="margin-top:2rem;">
+        <label>Estado de publicación</label>
+        <select id="statusSelect">
+          <option value="active">Publicar ahora (activo)</option>
+          <option value="draft">Guardar como borrador</option>
+        </select>
+      </div>
+
+      <div id="publishMsg"></div>
+
+      <div class="form-nav">
+        <button class="btn btn-ghost" onclick="prevStep(4)">← Anterior</button>
+        <button class="btn btn-primary" id="publishBtn" onclick="publishService()">🚀 Publicar servicio</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const sb = getSupabaseClient();
+let currentStep = 1;
+let selectedEmoji = '🎨';
+let tags = [];
+let currentUser = null;
+
+const EMOJIS = ['🎨', '💻', '📣', '🎬', '✍️', '🎵', '💼', '🤖', '📊', '🌐', '📱', '🎮', '🔧', '📸', '🎯', '🏆', '💡', '📝', '🎁', '⭐', '🔥', '💎', '🌟', '🚀'];
+
+async function init() {
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) { window.location.href = 'login.html'; return; }
+  currentUser = user;
+
+  // Populate categories
+  const catSel = document.getElementById('categorySelect');
+  CATEGORIES.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id; opt.textContent = `${c.icon} ${c.label}`;
+    catSel.appendChild(opt);
+  });
+
+  // Emoji grid
+  const emojiGrid = document.getElementById('emojiGrid');
+  EMOJIS.forEach(emoji => {
+    const btn = document.createElement('button');
+    btn.className = 'emoji-btn' + (emoji === selectedEmoji ? ' selected' : '');
+    btn.textContent = emoji;
+    btn.type = 'button';
+    btn.onclick = () => {
+      selectedEmoji = emoji;
+      document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+    };
+    emojiGrid.appendChild(btn);
+  });
+
+  // Char counters
+  document.getElementById('titleInput').addEventListener('input', function() {
+    document.getElementById('titleCount').textContent = this.value.length;
+  });
+  document.getElementById('descInput').addEventListener('input', function() {
+    document.getElementById('descCount').textContent = this.value.length;
+  });
+
+  // Tags
+  document.getElementById('tagInput').addEventListener('keydown', function(e) {
+    if ((e.key === 'Enter' || e.key === ',') && this.value.trim() && tags.length < 5) {
+      e.preventDefault();
+      addTag(this.value.trim().toLowerCase());
+      this.value = '';
+    }
+    if (e.key === 'Backspace' && !this.value && tags.length > 0) {
+      removeTag(tags.length - 1);
+    }
+  });
+}
+
+function addTag(text) {
+  if (tags.includes(text) || tags.length >= 5) return;
+  tags.push(text);
+  renderTags();
+}
+function removeTag(i) {
+  tags.splice(i, 1);
+  renderTags();
+}
+function renderTags() {
+  const container = document.getElementById('tagsContainer');
+  container.querySelectorAll('.tag').forEach(t => t.remove());
+  tags.forEach((tag, i) => {
+    const el = document.createElement('div');
+    el.className = 'tag';
+    el.innerHTML = `${tag} <button onclick="removeTag(${i})">✕</button>`;
+    container.insertBefore(el, document.getElementById('tagInput'));
+  });
+}
+
+function nextStep(from) {
+  if (from === 1) {
+    const title = document.getElementById('titleInput').value.trim();
+    const cat = document.getElementById('categorySelect').value;
+    if (!title) { alert('El título es obligatorio.'); return; }
+    if (!cat) { alert('Selecciona una categoría.'); return; }
+  }
+  if (from === 3) {
+    const desc = document.getElementById('descInput').value.trim();
+    if (!desc) { alert('La descripción es obligatoria.'); return; }
+    updatePreview();
+  }
+  goToStep(from + 1);
+}
+function prevStep(from) { goToStep(from - 1); }
+
+function goToStep(step) {
+  document.querySelectorAll('.form-section').forEach((s, i) => {
+    s.classList.toggle('active', i + 1 === step);
+  });
+  document.querySelectorAll('.step-item').forEach((s, i) => {
+    s.classList.remove('active', 'done');
+    if (i + 1 === step) s.classList.add('active');
+    else if (i + 1 < step) s.classList.add('done');
+  });
+  currentStep = step;
+}
+
+function updatePreview() {
+  const title = document.getElementById('titleInput').value || 'Título del servicio';
+  const price1 = document.getElementById('pkg1Price').value || '0';
+  document.getElementById('previewTitle').textContent = title;
+  document.getElementById('previewEmoji').textContent = selectedEmoji;
+  document.getElementById('previewPrice').innerHTML = `€${price1} <span style="font-size:0.75rem;color:var(--text-muted);font-family:var(--font-body)">/desde</span>`;
+
+  const summary = document.getElementById('summaryList');
+  const cat = document.getElementById('categorySelect').selectedOptions[0]?.textContent || '—';
+  const desc = document.getElementById('descInput').value.substring(0, 120) + '...';
+  summary.innerHTML = `
+    <div>📂 <strong>Categoría:</strong> ${cat}</div>
+    <div>🏷️ <strong>Etiquetas:</strong> ${tags.join(', ') || 'Sin etiquetas'}</div>
+    <div>📦 <strong>Paquete básico:</strong> €${price1} · ${document.getElementById('pkg1Days').value || '?'} días</div>
+    <div>💬 <strong>Descripción:</strong> ${desc}</div>`;
+}
+
+async function publishService() {
+  const btn = document.getElementById('publishBtn');
+  btn.disabled = true; btn.textContent = 'Publicando...';
+
+  const serviceData = {
+    user_id: currentUser.id,
+    title: document.getElementById('titleInput').value.trim(),
+    category: document.getElementById('categorySelect').value,
+    subcategory: document.getElementById('subcatInput').value.trim(),
+    cover_emoji: selectedEmoji,
+    description: document.getElementById('descInput').value.trim(),
+    requirements: document.getElementById('reqInput').value.trim(),
+    tags: tags,
+    status: document.getElementById('statusSelect').value,
+    price_from: parseFloat(document.getElementById('pkg1Price').value) || 0,
+    packages: [
+      { name: document.getElementById('pkg1Name').value, description: document.getElementById('pkg1Desc').value, price: parseFloat(document.getElementById('pkg1Price').value)||0, delivery_days: parseInt(document.getElementById('pkg1Days').value)||3, revisions: parseInt(document.getElementById('pkg1Rev').value)||1 },
+      { name: document.getElementById('pkg2Name').value, description: document.getElementById('pkg2Desc').value, price: parseFloat(document.getElementById('pkg2Price').value)||0, delivery_days: parseInt(document.getElementById('pkg2Days').value)||5, revisions: parseInt(document.getElementById('pkg2Rev').value)||3 },
+      { name: document.getElementById('pkg3Name').value, description: document.getElementById('pkg3Desc').value, price: parseFloat(document.getElementById('pkg3Price').value)||0, delivery_days: parseInt(document.getElementById('pkg3Days').value)||7, revisions: parseInt(document.getElementById('pkg3Rev').value)||5 }
+    ]
+  };
+
+  const { data, error } = await sb.from('services').insert(serviceData).select().single();
+
+  const msgEl = document.getElementById('publishMsg');
+  if (error) {
+    msgEl.className = 'msg error'; msgEl.textContent = 'Error: ' + error.message;
+  } else {
+    msgEl.className = 'msg success'; msgEl.textContent = '¡Servicio publicado con éxito! Redirigiendo...';
+    setTimeout(() => window.location.href = `service.html?id=${data.id}`, 1500);
+  }
+  btn.disabled = false; btn.textContent = '🚀 Publicar servicio';
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Explorar Servicios — FreelanceMarket</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0f; --surface: #13131a; --surface2: #1c1c28;
+      --border: #2a2a3a; --accent: #7c5cfc; --accent2: #fc5c7d;
+      --accent-glow: rgba(124,92,252,0.25); --text: #f0f0f8; --text-muted: #8888a8;
+      --font-display: 'Syne', sans-serif; --font-body: 'DM Sans', sans-serif;
+      --radius: 14px;
+      --sidebar-width: 260px;
+      --nav-height: 64px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-body); }
+
+    /* NAVBAR */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 5%; height: var(--nav-height);
+      background: rgba(10,10,15,0.92); backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo {
+      font-family: var(--font-display); font-size: 1.3rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      text-decoration: none; white-space: nowrap;
+    }
+    .nav-search {
+      flex: 1; max-width: 500px; margin: 0 2rem;
+      display: flex; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 50px; overflow: hidden;
+    }
+    .nav-search input {
+      flex: 1; background: none; border: none; outline: none;
+      color: var(--text); font-family: var(--font-body); font-size: 0.88rem;
+      padding: 0.55rem 1.2rem;
+    }
+    .nav-search input::placeholder { color: var(--text-muted); }
+    .nav-search button {
+      background: var(--surface2); border: none; color: var(--text-muted);
+      padding: 0 1rem; cursor: pointer; font-size: 0.9rem; transition: color 0.2s;
+    }
+    .nav-search button:hover { color: var(--accent); }
+    .nav-actions { display: flex; gap: 0.75rem; align-items: center; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.5rem 1.1rem; border-radius: 50px; font-family: var(--font-body);
+      font-size: 0.85rem; font-weight: 500; cursor: pointer; border: none;
+      transition: all 0.2s; text-decoration: none;
+    }
+    .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
+
+    /* ── MAIN LAYOUT ── */
+    .explore-layout {
+      display: flex;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem 2rem 3rem;
+      gap: 2.5rem;
+      align-items: flex-start;
+    }
+
+    /* ── FILTERS SIDEBAR ── */
+    .filters-sidebar {
+      width: var(--sidebar-width);
+      min-width: var(--sidebar-width);
+      flex-shrink: 0;
+      position: sticky;
+      top: calc(var(--nav-height) + 1.5rem);
+      max-height: calc(100vh - var(--nav-height) - 3rem);
+      overflow-y: auto;
+      scrollbar-width: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+    }
+    .filters-sidebar::-webkit-scrollbar { display: none; }
+    .sidebar-heading {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      color: var(--text);
+    }
+    .filter-section { margin-bottom: 1.5rem; }
+    .filter-section:last-child { margin-bottom: 0; }
+    .filter-title {
+      font-family: var(--font-display); font-weight: 600;
+      font-size: 0.82rem; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 0.75rem;
+    }
+    .filter-option {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.38rem 0; cursor: pointer; font-size: 0.85rem; color: var(--text-muted);
+      transition: color 0.15s;
+    }
+    .filter-option:hover { color: var(--text); }
+    .filter-option input[type="checkbox"],
+    .filter-option input[type="radio"] { accent-color: var(--accent); }
+    .price-range { display: flex; gap: 0.4rem; align-items: center; margin-bottom: 0.75rem; }
+    .price-input {
+      flex: 1; min-width: 0; width: 0;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-family: var(--font-body);
+      font-size: 0.8rem; padding: 0.4rem 0.5rem; outline: none;
+    }
+    .price-input:focus { border-color: var(--accent); }
+    .apply-btn {
+      width: 100%; padding: 0.6rem; border-radius: 8px; border: none;
+      background: var(--accent); color: #fff; font-family: var(--font-body);
+      font-size: 0.85rem; font-weight: 500; cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .apply-btn:hover { opacity: 0.88; }
+    .filter-divider { height: 1px; background: var(--border); margin: 1.25rem 0; }
+
+    /* ── RESULTS AREA ── */
+    .results-area {
+      flex: 1;
+      min-width: 0; /* prevents overflow */
+    }
+
+    /* Category pills */
+    .cat-pills {
+      display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.25rem;
+    }
+    .cat-pill {
+      padding: 0.38rem 1rem; border-radius: 50px;
+      background: var(--surface); border: 1px solid var(--border);
+      font-size: 0.82rem; color: var(--text-muted); cursor: pointer;
+      transition: all 0.2s; white-space: nowrap;
+    }
+    .cat-pill:hover { border-color: var(--accent); color: var(--accent); }
+    .cat-pill.active { background: rgba(124,92,252,0.15); border-color: var(--accent); color: var(--accent); }
+
+    /* Results header */
+    .results-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.25rem;
+    }
+    .results-count { font-size: 0.88rem; color: var(--text-muted); }
+    .results-count strong { color: var(--text); }
+    .sort-select {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-family: var(--font-body);
+      font-size: 0.85rem; padding: 0.4rem 0.8rem; outline: none; cursor: pointer;
+    }
+
+    /* SERVICE CARDS */
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 1.25rem;
+    }
+    .service-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+      cursor: pointer; transition: all 0.25s; text-decoration: none; color: var(--text);
+      display: block;
+    }
+    .service-card:hover { transform: translateY(-4px); border-color: rgba(124,92,252,0.45); box-shadow: 0 12px 32px rgba(0,0,0,0.35); }
+    .service-img {
+      width: 100%; height: 160px;
+      background: var(--surface2); display: flex; align-items: center;
+      justify-content: center; font-size: 3.2rem;
+    }
+    .service-body { padding: 1rem; }
+    .seller-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .seller-av {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .seller-nm { font-size: 0.78rem; color: var(--text-muted); }
+    .service-title { font-size: 0.9rem; font-weight: 500; line-height: 1.4; margin-bottom: 0.8rem; }
+    .service-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-top: 0.75rem; border-top: 1px solid var(--border);
+    }
+    .rating { font-size: 0.78rem; color: #fbbf24; }
+    .price { font-family: var(--font-display); font-weight: 700; color: var(--accent); font-size: 0.95rem; }
+    .price span { font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-body); font-weight: 400; }
+
+    /* LOADING / EMPTY */
+    .loading-grid { display: flex; flex-direction: column; gap: 0.5rem; padding: 3rem 0; align-items: center; color: var(--text-muted); }
+
+    /* PAGINATION */
+    .pagination { display: flex; justify-content: center; gap: 0.5rem; margin-top: 2.5rem; flex-wrap: wrap; }
+    .page-btn {
+      width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text-muted); cursor: pointer; font-size: 0.85rem;
+      transition: all 0.2s; display: flex; align-items: center; justify-content: center;
+    }
+    .page-btn:hover, .page-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(124,92,252,0.1); }
+
+    /* RESPONSIVE */
+    @media (max-width: 900px) {
+      .filters-sidebar { display: none; }
+      .explore-layout { padding: 1.25rem 1rem; }
+    }
+    @media (max-width: 600px) {
+      .nav-search { max-width: 180px; margin: 0 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">FreelanceMarket</a>
+  <div class="nav-search">
+    <input type="text" id="navSearch" placeholder="Buscar servicios..."/>
+    <button onclick="applySearch()">🔍</button>
+  </div>
+  <div class="nav-actions" id="navActions">
+    <a href="dashboard.html" class="btn btn-ghost">🏠 Mi panel</a>
+    <a href="create-service.html" class="btn btn-primary">+ Publicar</a>
+  </div>
+</nav>
+
+<div class="explore-layout">
+
+  <!-- SIDEBAR -->
+  <aside class="filters-sidebar">
+    <div class="sidebar-heading">Filtros</div>
+
+    <div class="filter-section">
+      <div class="filter-title">Precio</div>
+      <div class="price-range">
+        <input type="number" class="price-input" id="priceMin" placeholder="Min €" min="0"/>
+        <span style="color:var(--text-muted);font-size:0.8rem">—</span>
+        <input type="number" class="price-input" id="priceMax" placeholder="Max €" min="0"/>
+      </div>
+      <button class="apply-btn" onclick="loadServices()">Aplicar</button>
+    </div>
+
+    <div class="filter-divider"></div>
+
+    <div class="filter-section">
+      <div class="filter-title">Tiempo de entrega</div>
+      <label class="filter-option"><input type="radio" name="delivery" value="1"/> 24 horas</label>
+      <label class="filter-option"><input type="radio" name="delivery" value="3"/> Hasta 3 días</label>
+      <label class="filter-option"><input type="radio" name="delivery" value="7"/> Hasta 7 días</label>
+      <label class="filter-option"><input type="radio" name="delivery" value=""/> Cualquiera</label>
+    </div>
+
+    <div class="filter-divider"></div>
+
+    <div class="filter-section">
+      <div class="filter-title">Valoración</div>
+      <label class="filter-option"><input type="radio" name="rating" value="4.5"/> ★★★★½ y más</label>
+      <label class="filter-option"><input type="radio" name="rating" value="4"/> ★★★★ y más</label>
+      <label class="filter-option"><input type="radio" name="rating" value=""/> Todas</label>
+    </div>
+  </aside>
+
+  <!-- RESULTS -->
+  <div class="results-area">
+
+    <div class="cat-pills" id="catPills">
+      <div class="cat-pill active" onclick="setCat('')" data-cat="">Todos</div>
+    </div>
+
+    <div class="results-header">
+      <div class="results-count" id="resultsCount">Cargando...</div>
+      <select class="sort-select" id="sortSelect" onchange="loadServices()">
+        <option value="created_at">Más recientes</option>
+        <option value="price_from">Precio: menor primero</option>
+        <option value="rating">Mejor valorados</option>
+      </select>
+    </div>
+
+    <div class="services-grid" id="servicesGrid">
+      <div class="loading-grid" style="grid-column:1/-1">Cargando servicios...</div>
+    </div>
+
+    <div class="pagination" id="pagination"></div>
+  </div>
+</div>
+
+<script>
+const sb = getSupabaseClient();
+let activeCat = '';
+let currentPage = 0;
+const PAGE_SIZE = 12;
+
+function init() {
+  const params = new URLSearchParams(window.location.search);
+  const q = params.get('q');
+  const cat = params.get('cat');
+  if (q) document.getElementById('navSearch').value = q;
+  if (cat) activeCat = cat;
+
+  const pills = document.getElementById('catPills');
+  CATEGORIES.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'cat-pill' + (activeCat === c.id ? ' active' : '');
+    div.dataset.cat = c.id;
+    div.textContent = c.icon + ' ' + c.label;
+    div.onclick = () => setCat(c.id);
+    pills.appendChild(div);
+  });
+
+  loadServices();
+
+  sb.auth.getUser().then(({ data: { user } }) => {
+    if (!user) {
+      document.getElementById('navActions').innerHTML = `
+        <a href="login.html" class="btn btn-ghost">Iniciar sesión</a>
+        <a href="login.html" class="btn btn-primary">Registrarse</a>`;
+    }
+  });
+}
+
+function setCat(cat) {
+  activeCat = cat;
+  currentPage = 0;
+  document.querySelectorAll('.cat-pill').forEach(p => {
+    p.classList.toggle('active', p.dataset.cat === cat);
+  });
+  loadServices();
+}
+
+function applySearch() {
+  currentPage = 0;
+  loadServices();
+}
+
+async function loadServices() {
+  const grid = document.getElementById('servicesGrid');
+  grid.innerHTML = '<div class="loading-grid" style="grid-column:1/-1">Buscando...</div>';
+
+  const q = document.getElementById('navSearch').value.trim();
+  const priceMin = document.getElementById('priceMin').value;
+  const priceMax = document.getElementById('priceMax').value;
+  const sort = document.getElementById('sortSelect').value;
+  const from = currentPage * PAGE_SIZE;
+
+  let query = sb.from('services')
+    .select('*, profiles(username, avatar_url)', { count: 'exact' })
+    .eq('status', 'active')
+    .range(from, from + PAGE_SIZE - 1)
+    .order(sort, { ascending: sort === 'price_from' });
+
+  if (activeCat) query = query.eq('category', activeCat);
+  if (q) query = query.ilike('title', `%${q}%`);
+  if (priceMin) query = query.gte('price_from', parseFloat(priceMin));
+  if (priceMax) query = query.lte('price_from', parseFloat(priceMax));
+
+  const { data: services, count, error } = await query;
+
+  document.getElementById('resultsCount').innerHTML = error
+    ? 'Error al cargar'
+    : `<strong>${count || 0}</strong> servicios encontrados`;
+
+  if (!services || services.length === 0) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:4rem;color:var(--text-muted)">
+      <div style="font-size:3rem;margin-bottom:1rem">🔍</div>
+      <div style="font-size:1.1rem;color:var(--text);margin-bottom:0.5rem">No encontramos servicios</div>
+      <div>Prueba con otros términos o <a href="create-service.html" style="color:var(--accent)">publica el tuyo</a></div>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = '';
+  services.forEach(s => {
+    const initials = (s.profiles?.username || 'U').substring(0,2).toUpperCase();
+    const card = document.createElement('a');
+    card.href = `service.html?id=${s.id}`;
+    card.className = 'service-card';
+    card.innerHTML = `
+      <div class="service-img">${s.cover_emoji || '🎨'}</div>
+      <div class="service-body">
+        <div class="seller-row">
+          <div class="seller-av">${initials}</div>
+          <span class="seller-nm">${s.profiles?.username || 'Freelancer'}</span>
+        </div>
+        <div class="service-title">${s.title}</div>
+        <div class="service-footer">
+          <span class="rating">★ ${s.rating || '5.0'} (${s.reviews_count || 0})</span>
+          <div class="price">€${s.price_from}<span>/desde</span></div>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+
+  renderPagination(count);
+}
+
+function renderPagination(total) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const pag = document.getElementById('pagination');
+  pag.innerHTML = '';
+  if (totalPages <= 1) return;
+  for (let i = 0; i < totalPages; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'page-btn' + (i === currentPage ? ' active' : '');
+    btn.textContent = i + 1;
+    btn.onclick = () => { currentPage = i; loadServices(); window.scrollTo({top:0}); };
+    pag.appendChild(btn);
+  }
+}
+
+init();
+</script>
+</body>
+</html>

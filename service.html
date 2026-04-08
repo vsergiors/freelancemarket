@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Detalle de Servicio — FreelanceMarket</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #111118;
+      --surface2: #1a1a24;
+      --border: #2a2a3a;
+      --accent: #7c6af7;
+      --accent2: #f7c26a;
+      --text: #f0eeff;
+      --muted: #7a7a9a;
+      --success: #4ade80;
+      --danger: #f87171;
+      --radius: 14px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* NAV */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem; height: 64px;
+      background: rgba(10,10,15,0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.2rem; color: var(--text); text-decoration: none; }
+    .nav-logo span { color: var(--accent); }
+    .nav-actions { display: flex; gap: .75rem; align-items: center; }
+    .btn { display: inline-flex; align-items: center; gap: .4rem; padding: .5rem 1.2rem; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: .875rem; font-weight: 500; cursor: pointer; border: none; transition: all .2s; text-decoration: none; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--text); border-color: var(--accent); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #6a58e5; transform: translateY(-1px); }
+    .btn-accent2 { background: var(--accent2); color: #1a1200; font-weight: 700; }
+    .btn-accent2:hover { background: #f5b840; transform: translateY(-1px); }
+    .btn-lg { padding: .85rem 2rem; font-size: 1rem; border-radius: 12px; }
+
+    /* HERO COVER */
+    .service-hero {
+      position: relative;
+      width: 100%; height: 340px;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+    }
+    .service-hero-bg {
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, #1a1230 0%, #0d1a2e 50%, #1a1230 100%);
+    }
+    .service-hero-emoji {
+      position: relative; z-index: 2;
+      font-size: 7rem;
+      filter: drop-shadow(0 0 60px rgba(124,106,247,.4));
+      animation: float 4s ease-in-out infinite;
+    }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+
+    /* LAYOUT */
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem; }
+    .service-layout {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 2.5rem;
+      padding: 2.5rem 0 4rem;
+    }
+    @media(max-width:900px){ .service-layout{ grid-template-columns:1fr; } }
+
+    /* LEFT COLUMN */
+    .service-main {}
+    .service-header { margin-bottom: 1.5rem; }
+    .service-category {
+      display: inline-flex; align-items: center; gap: .35rem;
+      background: rgba(124,106,247,.15); color: var(--accent);
+      border: 1px solid rgba(124,106,247,.3);
+      padding: .25rem .75rem; border-radius: 20px;
+      font-size: .78rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+    .service-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 2rem; font-weight: 800;
+      line-height: 1.2; color: var(--text);
+      margin-bottom: 1rem;
+    }
+    .service-meta { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+    .seller-mini { display: flex; align-items: center; gap: .6rem; text-decoration: none; }
+    .seller-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: .85rem; color: #fff; flex-shrink: 0;
+      overflow: hidden;
+    }
+    .seller-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .seller-name { font-size: .9rem; font-weight: 500; color: var(--text); }
+    .seller-level { font-size: .75rem; color: var(--muted); }
+    .rating-badge { display: flex; align-items: center; gap: .3rem; }
+    .stars { color: var(--accent2); font-size: .9rem; }
+    .rating-num { font-weight: 700; font-size: .9rem; }
+    .rating-count { color: var(--muted); font-size: .8rem; }
+    .orders-badge { color: var(--muted); font-size: .85rem; }
+
+    /* TABS */
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 2rem; }
+    .tab-btn {
+      padding: .75rem 1.25rem; background: none; border: none; cursor: pointer;
+      font-family: 'DM Sans', sans-serif; font-size: .9rem; font-weight: 500;
+      color: var(--muted); border-bottom: 2px solid transparent;
+      margin-bottom: -1px; transition: all .2s;
+    }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-btn:hover:not(.active) { color: var(--text); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* DESCRIPTION */
+    .service-description {
+      color: #c8c8e0; line-height: 1.8; font-size: .95rem;
+      white-space: pre-line;
+    }
+    .service-tags { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.5rem; }
+    .tag {
+      background: var(--surface2); border: 1px solid var(--border);
+      padding: .3rem .8rem; border-radius: 20px;
+      font-size: .8rem; color: var(--muted);
+    }
+
+    /* REQUIREMENTS */
+    .requirements-box {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.5rem;
+    }
+    .requirements-box h3 { font-family: 'Syne', sans-serif; font-size: 1rem; margin-bottom: .75rem; }
+    .requirements-box p { color: var(--muted); line-height: 1.7; font-size: .9rem; }
+
+    /* REVIEWS */
+    .reviews-list { display: flex; flex-direction: column; gap: 1.25rem; }
+    .review-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem;
+    }
+    .review-header { display: flex; align-items: center; gap: .75rem; margin-bottom: .75rem; }
+    .review-avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: linear-gradient(135deg, #f7c26a, #f87171);
+      display: flex; align-items: center; justify-content: center;
+      font-size: .85rem; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .review-meta {}
+    .review-name { font-size: .9rem; font-weight: 600; }
+    .review-date { font-size: .75rem; color: var(--muted); }
+    .review-stars { color: var(--accent2); font-size: .85rem; margin-bottom: .5rem; }
+    .review-text { color: #b8b8d0; font-size: .875rem; line-height: 1.6; }
+    .no-reviews { color: var(--muted); font-size: .9rem; padding: 1.5rem; text-align: center; }
+
+    /* RIGHT SIDEBAR */
+    .service-sidebar { }
+    .sticky-card {
+      position: sticky; top: 80px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 18px; overflow: hidden;
+    }
+
+    /* PACKAGES */
+    .packages-tabs { display: flex; border-bottom: 1px solid var(--border); }
+    .pkg-tab {
+      flex: 1; padding: .85rem; background: none; border: none; cursor: pointer;
+      font-family: 'DM Sans', sans-serif; font-size: .85rem; font-weight: 600;
+      color: var(--muted); border-bottom: 2px solid transparent;
+      margin-bottom: -1px; transition: all .2s;
+    }
+    .pkg-tab.active { color: var(--text); border-bottom-color: var(--accent); background: rgba(124,106,247,.05); }
+    .pkg-tab:hover:not(.active) { color: var(--text); }
+
+    .pkg-content { padding: 1.5rem; }
+    .pkg-name { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; margin-bottom: .25rem; }
+    .pkg-desc { color: var(--muted); font-size: .85rem; line-height: 1.5; margin-bottom: 1.25rem; }
+    .pkg-price { font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800; color: var(--text); margin-bottom: 1.25rem; }
+    .pkg-price span { font-size: 1rem; color: var(--muted); font-weight: 400; }
+    .pkg-features { list-style: none; display: flex; flex-direction: column; gap: .6rem; margin-bottom: 1.5rem; }
+    .pkg-features li { display: flex; align-items: center; gap: .6rem; font-size: .875rem; color: #c8c8e0; }
+    .pkg-features li::before { content: '✓'; color: var(--success); font-weight: 700; flex-shrink: 0; }
+
+    .order-btn { width: 100%; justify-content: center; font-size: 1rem; padding: .9rem; border-radius: 10px; }
+
+    .sidebar-extras { padding: 1rem 1.5rem 1.5rem; border-top: 1px solid var(--border); }
+    .extra-row { display: flex; justify-content: space-between; align-items: center; padding: .5rem 0; font-size: .85rem; color: var(--muted); border-bottom: 1px solid var(--border); }
+    .extra-row:last-child { border-bottom: none; }
+    .extra-val { color: var(--text); font-weight: 500; }
+
+    .contact-btn { width: 100%; justify-content: center; margin-top: 1rem; }
+
+    /* SELLER CARD */
+    .seller-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.5rem; margin-top: 1.5rem;
+    }
+    .seller-card-title { font-family: 'Syne', sans-serif; font-size: .85rem; font-weight: 700; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 1.25rem; }
+    .seller-profile-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
+    .seller-big-avatar {
+      width: 60px; height: 60px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 1.3rem; color: #fff; flex-shrink: 0;
+      overflow: hidden;
+    }
+    .seller-big-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .seller-info-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; }
+    .seller-info-bio { color: var(--muted); font-size: .82rem; margin-top: .2rem; line-height: 1.4; }
+    .seller-stats { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-bottom: 1rem; }
+    .s-stat { background: var(--surface2); border-radius: 10px; padding: .75rem; text-align: center; }
+    .s-stat-val { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.1rem; color: var(--text); }
+    .s-stat-label { font-size: .72rem; color: var(--muted); margin-top: .15rem; }
+
+    /* ORDER MODAL */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,.7); backdrop-filter: blur(6px);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity .3s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 2rem; width: 100%; max-width: 500px;
+      max-height: 90vh; overflow-y: auto;
+      transform: translateY(20px); transition: transform .3s;
+    }
+    .modal-overlay.open .modal { transform: translateY(0); }
+    .modal-title { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 700; margin-bottom: 1.5rem; }
+    .form-group { margin-bottom: 1.25rem; }
+    .form-group label { display: block; font-size: .85rem; font-weight: 500; color: var(--muted); margin-bottom: .5rem; }
+    .form-group textarea {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: .75rem 1rem; color: var(--text);
+      font-family: 'DM Sans', sans-serif; font-size: .9rem; resize: vertical; min-height: 120px;
+      transition: border-color .2s;
+    }
+    .form-group textarea:focus { outline: none; border-color: var(--accent); }
+    .modal-actions { display: flex; gap: .75rem; margin-top: 1.5rem; }
+    .modal-actions .btn { flex: 1; justify-content: center; }
+
+    /* LOADING */
+    .skeleton { background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%); background-size: 200%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+    @keyframes shimmer { 0%{background-position:200%} 100%{background-position:-200%} }
+
+    /* TOAST */
+    .toast {
+      position: fixed; bottom: 2rem; right: 2rem; z-index: 300;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1rem 1.5rem;
+      display: flex; align-items: center; gap: .75rem;
+      transform: translateY(100px); opacity: 0; transition: all .3s;
+      max-width: 340px; box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-left: 3px solid var(--success); }
+    .toast.error { border-left: 3px solid var(--danger); }
+    .toast-text { font-size: .875rem; }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="index.html" class="nav-logo">Freelance<span>Market</span></a>
+  <div class="nav-actions">
+    <a href="explore.html" class="btn btn-ghost">Explorar</a>
+    <a href="dashboard.html" class="btn btn-primary" id="nav-dashboard" style="display:none">Dashboard</a>
+    <a href="login.html" class="btn btn-ghost" id="nav-login">Entrar</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="service-hero">
+  <div class="service-hero-bg"></div>
+  <div class="service-hero-emoji" id="hero-emoji">🎨</div>
+</div>
+
+<!-- MAIN -->
+<div class="container">
+  <div class="service-layout">
+
+    <!-- LEFT -->
+    <div class="service-main">
+      <div class="service-header">
+        <div class="service-category" id="service-cat">Cargando...</div>
+        <h1 class="service-title" id="service-title">Cargando servicio...</h1>
+        <div class="service-meta">
+          <a href="#seller-section" class="seller-mini">
+            <div class="seller-avatar" id="seller-avatar-sm">?</div>
+            <div>
+              <div class="seller-name" id="seller-name-sm">—</div>
+              <div class="seller-level">Vendedor</div>
+            </div>
+          </a>
+          <div class="rating-badge">
+            <span class="stars">★★★★★</span>
+            <span class="rating-num" id="meta-rating">5.0</span>
+            <span class="rating-count" id="meta-reviews">(0)</span>
+          </div>
+          <span class="orders-badge" id="meta-orders">0 pedidos</span>
+        </div>
+      </div>
+
+      <!-- TABS -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="desc">Descripción</button>
+        <button class="tab-btn" data-tab="reqs">Requisitos</button>
+        <button class="tab-btn" data-tab="reviews">Reseñas</button>
+      </div>
+
+      <div class="tab-panel active" id="tab-desc">
+        <p class="service-description" id="service-desc">Cargando...</p>
+        <div class="service-tags" id="service-tags"></div>
+      </div>
+
+      <div class="tab-panel" id="tab-reqs">
+        <div class="requirements-box">
+          <h3>📋 Lo que necesito de ti</h3>
+          <p id="service-requirements">No se especificaron requisitos.</p>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-reviews">
+        <div class="reviews-list" id="reviews-list">
+          <div class="no-reviews">Cargando reseñas...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT SIDEBAR -->
+    <div class="service-sidebar">
+      <div class="sticky-card">
+        <div class="packages-tabs" id="pkg-tabs"></div>
+        <div class="pkg-content" id="pkg-content">
+          <div class="pkg-name skeleton" style="height:20px;width:60%;margin-bottom:.5rem"></div>
+          <div class="pkg-desc skeleton" style="height:40px;margin-bottom:1rem"></div>
+          <div class="pkg-price skeleton" style="height:40px;width:40%;margin-bottom:1rem"></div>
+          <button class="btn btn-accent2 order-btn" disabled>Cargando...</button>
+        </div>
+        <div class="sidebar-extras" id="sidebar-extras"></div>
+        <div style="padding:0 1.5rem 1.5rem">
+          <button class="btn btn-ghost contact-btn" id="btn-contact">💬 Contactar al vendedor</button>
+        </div>
+      </div>
+
+      <!-- SELLER INFO -->
+      <div class="seller-card" id="seller-section">
+        <div class="seller-card-title">Sobre el vendedor</div>
+        <div class="seller-profile-row">
+          <div class="seller-big-avatar" id="seller-avatar-lg">?</div>
+          <div>
+            <div class="seller-info-name" id="seller-fullname">—</div>
+            <div class="seller-info-bio" id="seller-bio">—</div>
+          </div>
+        </div>
+        <div class="seller-stats" id="seller-stats">
+          <div class="s-stat"><div class="s-stat-val" id="stat-orders">0</div><div class="s-stat-label">Pedidos</div></div>
+          <div class="s-stat"><div class="s-stat-val" id="stat-rating">5.0</div><div class="s-stat-label">Valoración</div></div>
+        </div>
+        <a href="#" class="btn btn-ghost" id="btn-view-profile" style="width:100%;justify-content:center">Ver perfil completo</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ORDER MODAL -->
+<div class="modal-overlay" id="order-modal">
+  <div class="modal">
+    <h2 class="modal-title">📦 Realizar pedido</h2>
+    <div id="modal-summary" style="background:var(--surface2);border-radius:10px;padding:1rem;margin-bottom:1.5rem;font-size:.9rem;color:var(--muted)"></div>
+    <div class="form-group">
+      <label>Cuéntame sobre tu proyecto / requisitos</label>
+      <textarea id="order-requirements" placeholder="Describe qué necesitas con el mayor detalle posible..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-accent2" id="btn-confirm-order">Confirmar pedido</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"><span id="toast-text" class="toast-text"></span></div>
+
+<script>
+  // ---- CONFIG ----
+  const SUPABASE_URL = 'https://lsougtrfsbpvadyikyfm.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxzb3VndHJmc2JwdmFkeWlreWZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2NzAyMTcsImV4cCI6MjA5MTI0NjIxN30.NeqCGj-b7nK9EBXBhpFN65fY4yYwqnuTpX_jigDV38s';
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const CATEGORIES = [
+    { id: 'design', label: 'Diseño Gráfico', icon: '🎨' },
+    { id: 'dev', label: 'Desarrollo Web', icon: '💻' },
+    { id: 'marketing', label: 'Marketing Digital', icon: '📣' },
+    { id: 'video', label: 'Video & Animación', icon: '🎬' },
+    { id: 'writing', label: 'Redacción & Traducción', icon: '✍️' },
+    { id: 'music', label: 'Música & Audio', icon: '🎵' },
+    { id: 'business', label: 'Negocios', icon: '💼' },
+    { id: 'ai', label: 'Servicios con IA', icon: '🤖' },
+  ];
+
+  let service = null;
+  let seller = null;
+  let currentUser = null;
+  let selectedPkg = 0;
+  let packages = [];
+
+  // ---- UTILS ----
+  function getParam(key) {
+    return new URLSearchParams(location.search).get(key);
+  }
+
+  function initials(name) {
+    if (!name) return '?';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2);
+  }
+
+  function stars(n) {
+    const full = Math.round(n || 5);
+    return '★'.repeat(full) + '☆'.repeat(5 - full);
+  }
+
+  function toast(msg, type = 'success') {
+    const el = document.getElementById('toast');
+    document.getElementById('toast-text').textContent = msg;
+    el.className = `toast ${type} show`;
+    setTimeout(() => el.className = 'toast', 3500);
+  }
+
+  function closeModal() {
+    document.getElementById('order-modal').classList.remove('open');
+  }
+
+  // ---- AUTH CHECK ----
+  async function checkAuth() {
+    const { data: { user } } = await db.auth.getUser();
+    currentUser = user;
+    if (user) {
+      document.getElementById('nav-dashboard').style.display = 'flex';
+      document.getElementById('nav-login').style.display = 'none';
+    }
+  }
+
+  // ---- LOAD SERVICE ----
+  async function loadService() {
+    const id = getParam('id');
+    if (!id) { document.getElementById('service-title').textContent = 'Servicio no encontrado'; return; }
+
+    // Increment views
+    db.from('services').update({ views: db.rpc('increment', { x: 1 }) }).eq('id', id).then(() => {});
+
+    const { data, error } = await db
+      .from('services')
+      .select(`*, profiles!services_user_id_fkey(id, username, full_name, avatar_url, bio, is_seller)`)
+      .eq('id', id)
+      .single();
+
+    if (error || !data) { document.getElementById('service-title').textContent = 'Servicio no encontrado'; return; }
+
+    service = data;
+    seller = data.profiles;
+    packages = data.packages || [{ name: 'Básico', description: data.description, price: data.price_from, delivery_days: 7, revisions: 1 }];
+
+    renderService();
+    renderPackages();
+    loadReviews(id);
+
+    // Track view
+    await db.from('services').update({ views: (data.views || 0) + 1 }).eq('id', id);
+  }
+
+  function renderService() {
+    const cat = CATEGORIES.find(c => c.id === service.category);
+
+    document.title = `${service.title} — FreelanceMarket`;
+    document.getElementById('hero-emoji').textContent = service.cover_emoji || '🎨';
+    document.getElementById('service-cat').textContent = cat ? `${cat.icon} ${cat.label}` : service.category || 'Servicio';
+    document.getElementById('service-title').textContent = service.title;
+    document.getElementById('service-desc').textContent = service.description || 'Sin descripción.';
+    document.getElementById('service-requirements').textContent = service.requirements || 'No se especificaron requisitos adicionales.';
+    document.getElementById('meta-rating').textContent = (service.rating || 5).toFixed(1);
+    document.getElementById('meta-reviews').textContent = `(${service.reviews_count || 0})`;
+    document.getElementById('meta-orders').textContent = `${service.orders_count || 0} pedidos`;
+
+    // Tags
+    const tagsEl = document.getElementById('service-tags');
+    (service.tags || []).forEach(t => {
+      const span = document.createElement('span');
+      span.className = 'tag';
+      span.textContent = `#${t}`;
+      tagsEl.appendChild(span);
+    });
+
+    // Seller
+    const av = seller?.avatar_url;
+    const name = seller?.full_name || seller?.username || 'Vendedor';
+    const ini = initials(name);
+
+    ['seller-avatar-sm', 'seller-avatar-lg'].forEach(id => {
+      const el = document.getElementById(id);
+      if (av) { el.innerHTML = `<img src="${av}" alt="${name}" />`; }
+      else { el.textContent = ini; }
+    });
+
+    document.getElementById('seller-name-sm').textContent = name;
+    document.getElementById('seller-fullname').textContent = name;
+    document.getElementById('seller-bio').textContent = seller?.bio || 'Freelancer en FreelanceMarket';
+    document.getElementById('stat-orders').textContent = service.orders_count || 0;
+    document.getElementById('stat-rating').textContent = (service.rating || 5).toFixed(1);
+
+    const profileLink = document.getElementById('btn-view-profile');
+    profileLink.href = `profile.html?id=${seller?.id}`;
+
+    // Contact btn
+    document.getElementById('btn-contact').onclick = () => {
+      if (!currentUser) { window.location.href = 'login.html'; return; }
+      window.location.href = `chat.html?with=${seller?.id}`;
+    };
+  }
+
+  function renderPackages() {
+    const tabsEl = document.getElementById('pkg-tabs');
+    tabsEl.innerHTML = '';
+    packages.forEach((pkg, i) => {
+      const btn = document.createElement('button');
+      btn.className = `pkg-tab${i === 0 ? ' active' : ''}`;
+      btn.textContent = pkg.name || `Paquete ${i + 1}`;
+      btn.onclick = () => selectPackage(i);
+      tabsEl.appendChild(btn);
+    });
+    selectPackage(0);
+  }
+
+  function selectPackage(i) {
+    selectedPkg = i;
+    document.querySelectorAll('.pkg-tab').forEach((b, idx) => b.classList.toggle('active', idx === i));
+    const pkg = packages[i];
+    const content = document.getElementById('pkg-content');
+    content.innerHTML = `
+      <div class="pkg-name">${pkg.name || 'Paquete'}</div>
+      <div class="pkg-desc">${pkg.description || ''}</div>
+      <div class="pkg-price">€${(pkg.price || pkg.price_from || 0).toFixed(2)} <span>precio fijo</span></div>
+      <ul class="pkg-features">
+        <li>${pkg.delivery_days || 7} días de entrega</li>
+        <li>${pkg.revisions || 1} revisión${(pkg.revisions||1) > 1 ? 'es' : ''}</li>
+        ${pkg.features ? pkg.features.map(f => `<li>${f}</li>`).join('') : ''}
+      </ul>
+      <button class="btn btn-accent2 order-btn" onclick="openOrderModal()">Pedir por €${(pkg.price || pkg.price_from || 0).toFixed(2)}</button>
+    `;
+
+    document.getElementById('sidebar-extras').innerHTML = `
+      <div class="extra-row"><span>Entrega</span><span class="extra-val">${pkg.delivery_days || 7} días</span></div>
+      <div class="extra-row"><span>Revisiones</span><span class="extra-val">${pkg.revisions || 1}</span></div>
+      <div class="extra-row"><span>Soporte</span><span class="extra-val">24h</span></div>
+    `;
+  }
+
+  function openOrderModal() {
+    if (!currentUser) { window.location.href = 'login.html'; return; }
+    if (currentUser.id === seller?.id) { toast('No puedes pedir tu propio servicio', 'error'); return; }
+    const pkg = packages[selectedPkg];
+    document.getElementById('modal-summary').innerHTML = `
+      <strong>${service.title}</strong><br>
+      Paquete: ${pkg.name} · Precio: <strong>€${(pkg.price || 0).toFixed(2)}</strong> · Entrega: ${pkg.delivery_days || 7} días
+    `;
+    document.getElementById('order-modal').classList.add('open');
+  }
+
+  document.getElementById('btn-confirm-order').onclick = async () => {
+    const reqs = document.getElementById('order-requirements').value.trim();
+    const pkg = packages[selectedPkg];
+    const btn = document.getElementById('btn-confirm-order');
+    btn.disabled = true; btn.textContent = 'Procesando...';
+
+    const { error } = await db.from('orders').insert({
+      service_id: service.id,
+      buyer_id: currentUser.id,
+      seller_id: seller.id,
+      package_name: pkg.name,
+      amount: pkg.price || pkg.price_from || 0,
+      delivery_days: pkg.delivery_days || 7,
+      requirements: reqs,
+      status: 'pending'
+    });
+
+    btn.disabled = false; btn.textContent = 'Confirmar pedido';
+    if (error) { toast('Error al crear el pedido: ' + error.message, 'error'); return; }
+    closeModal();
+    toast('¡Pedido creado! Revisa tus pedidos en el dashboard.');
+    setTimeout(() => window.location.href = 'orders.html', 2000);
+  };
+
+  // ---- REVIEWS ----
+  async function loadReviews(serviceId) {
+    const { data, error } = await db
+      .from('reviews')
+      .select(`*, profiles!reviews_reviewer_id_fkey(username, full_name, avatar_url)`)
+      .eq('service_id', serviceId)
+      .order('created_at', { ascending: false });
+
+    const list = document.getElementById('reviews-list');
+    if (error || !data?.length) {
+      list.innerHTML = '<div class="no-reviews">🌟 Sé el primero en dejar una reseña</div>';
+      return;
+    }
+    list.innerHTML = data.map(r => {
+      const name = r.profiles?.full_name || r.profiles?.username || 'Usuario';
+      return `
+        <div class="review-card">
+          <div class="review-header">
+            <div class="review-avatar">${initials(name)}</div>
+            <div class="review-meta">
+              <div class="review-name">${name}</div>
+              <div class="review-date">${new Date(r.created_at).toLocaleDateString('es-ES', { year:'numeric', month:'long', day:'numeric' })}</div>
+            </div>
+          </div>
+          <div class="review-stars">${stars(r.rating)}</div>
+          <div class="review-text">${r.comment || ''}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ---- TABS ----
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+    };
+  });
+
+  // Close modal on overlay click
+  document.getElementById('order-modal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+
+  // ---- INIT ----
+  checkAuth().then(loadService);
+</script>
+</body>
+</html>

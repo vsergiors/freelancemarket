@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mis Servicios — FreelanceMarket</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #111118;
+      --surface2: #1a1a24;
+      --border: #2a2a3a;
+      --accent: #7c6af7;
+      --accent2: #f7c26a;
+      --text: #f0eeff;
+      --muted: #7a7a9a;
+      --success: #4ade80;
+      --warning: #fbbf24;
+      --danger: #f87171;
+      --radius: 14px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem; height: 64px;
+      background: rgba(10,10,15,0.9); backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.2rem; color: var(--text); text-decoration: none; }
+    .nav-logo span { color: var(--accent); }
+    .nav-links { display: flex; gap: 1.5rem; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: .9rem; transition: color .2s; }
+    .nav-links a.active { color: var(--text); }
+    .btn { display: inline-flex; align-items: center; gap: .4rem; padding: .5rem 1.2rem; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: .875rem; font-weight: 500; cursor: pointer; border: none; transition: all .2s; text-decoration: none; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--text); border-color: var(--accent); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #6a58e5; transform: translateY(-1px); }
+    .btn-sm { padding: .35rem .85rem; font-size: .8rem; border-radius: 7px; }
+    .btn-danger { background: rgba(248,113,113,.12); color: var(--danger); border: 1px solid rgba(248,113,113,.25); }
+    .btn-danger:hover { background: rgba(248,113,113,.2); }
+    .btn-success { background: rgba(74,222,128,.12); color: var(--success); border: 1px solid rgba(74,222,128,.25); }
+    .btn-success:hover { background: rgba(74,222,128,.2); }
+    .btn-warning { background: rgba(251,191,36,.12); color: var(--warning); border: 1px solid rgba(251,191,36,.25); }
+    .btn-warning:hover { background: rgba(251,191,36,.2); }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+
+    /* PAGE HEADER */
+    .page-header { padding: 2.5rem 0 2rem; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem; }
+    .page-header h1 { font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800; }
+    .page-header p { color: var(--muted); font-size: .9rem; margin-top: .25rem; }
+
+    /* STATS ROW */
+    .stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; margin-bottom: 2rem; }
+    @media(max-width:600px) { .stats-row { grid-template-columns: repeat(2,1fr); } }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; }
+    .stat-card-val { font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 800; color: var(--text); }
+    .stat-card-label { font-size: .78rem; color: var(--muted); margin-top: .2rem; text-transform: uppercase; letter-spacing: .05em; }
+    .stat-card.accent .stat-card-val { color: var(--accent); }
+    .stat-card.gold .stat-card-val { color: var(--accent2); }
+    .stat-card.green .stat-card-val { color: var(--success); }
+
+    /* FILTER */
+    .filter-row { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1.5rem; align-items: center; justify-content: space-between; }
+    .filter-btns { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .filter-btn { padding: .4rem 1rem; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: .82rem; cursor: pointer; transition: all .2s; }
+    .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .filter-btn:hover:not(.active) { color: var(--text); border-color: var(--accent); }
+    .search-input {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: .4rem 1rem; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: .875rem;
+      width: 220px; transition: border-color .2s;
+    }
+    .search-input:focus { outline: none; border-color: var(--accent); }
+
+    /* SERVICES GRID */
+    .services-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.25rem; padding-bottom: 4rem; }
+
+    .service-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden; transition: all .25s; display: flex; flex-direction: column;
+    }
+    .service-card:hover { border-color: rgba(124,106,247,.5); box-shadow: 0 8px 24px rgba(124,106,247,.1); }
+
+    .sc-cover {
+      height: 120px; display: flex; align-items: center; justify-content: center; font-size: 3rem;
+      background: linear-gradient(135deg, var(--surface2), #1a1230);
+      position: relative;
+    }
+    .sc-status-badge {
+      position: absolute; top: .75rem; right: .75rem;
+      padding: .2rem .65rem; border-radius: 12px; font-size: .72rem; font-weight: 600;
+    }
+    .status-active { background: rgba(74,222,128,.15); color: var(--success); border: 1px solid rgba(74,222,128,.3); }
+    .status-draft { background: rgba(251,191,36,.12); color: var(--warning); border: 1px solid rgba(251,191,36,.2); }
+    .status-paused { background: rgba(248,113,113,.12); color: var(--danger); border: 1px solid rgba(248,113,113,.2); }
+
+    .sc-body { padding: 1.25rem; flex: 1; display: flex; flex-direction: column; }
+    .sc-cat { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: .4rem; }
+    .sc-title { font-family: 'Syne', sans-serif; font-size: .95rem; font-weight: 700; color: var(--text); margin-bottom: .75rem; line-height: 1.3; flex: 1; }
+    .sc-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; margin-bottom: 1rem; }
+    .sc-metric { text-align: center; }
+    .sc-metric-val { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; color: var(--text); }
+    .sc-metric-label { font-size: .68rem; color: var(--muted); }
+    .sc-footer { display: flex; gap: .5rem; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 1rem; }
+
+    /* EMPTY */
+    .empty-state { grid-column: 1/-1; text-align: center; padding: 5rem 1.5rem; }
+    .empty-icon { font-size: 4rem; margin-bottom: 1rem; }
+    .empty-title { font-family: 'Syne', sans-serif; font-size: 1.4rem; font-weight: 700; margin-bottom: .5rem; }
+    .empty-text { color: var(--muted); margin-bottom: 1.5rem; }
+
+    /* CONFIRM MODAL */
+    .modal-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.75); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .3s; }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 2rem; width: 100%; max-width: 420px; transform: translateY(20px); transition: transform .3s; }
+    .modal-overlay.open .modal { transform: translateY(0); }
+    .modal-title { font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700; margin-bottom: .75rem; }
+    .modal-text { color: var(--muted); font-size: .9rem; margin-bottom: 1.5rem; line-height: 1.5; }
+    .modal-actions { display: flex; gap: .75rem; }
+    .modal-actions .btn { flex: 1; justify-content: center; }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 2rem; right: 2rem; z-index: 300; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.5rem; transform: translateY(100px); opacity: 0; transition: all .3s; max-width: 340px; font-size: .875rem; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-left: 3px solid var(--success); }
+    .toast.error { border-left: 3px solid var(--danger); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">Freelance<span>Market</span></a>
+  <div class="nav-links">
+    <a href="dashboard.html">Dashboard</a>
+    <a href="orders.html">Pedidos</a>
+    <a href="my-services.html" class="active">Mis servicios</a>
+  </div>
+  <a href="create-service.html" class="btn btn-primary btn-sm">+ Nuevo servicio</a>
+</nav>
+
+<div class="container">
+  <div class="page-header">
+    <div>
+      <h1>🛠 Mis Servicios</h1>
+      <p>Gestiona y optimiza tus servicios activos</p>
+    </div>
+    <a href="create-service.html" class="btn btn-primary">+ Crear servicio</a>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card accent"><div class="stat-card-val" id="stat-total">0</div><div class="stat-card-label">Total servicios</div></div>
+    <div class="stat-card green"><div class="stat-card-val" id="stat-active">0</div><div class="stat-card-label">Activos</div></div>
+    <div class="stat-card gold"><div class="stat-card-val" id="stat-orders">0</div><div class="stat-card-label">Pedidos totales</div></div>
+    <div class="stat-card"><div class="stat-card-val" id="stat-views">0</div><div class="stat-card-label">Vistas totales</div></div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filter-row">
+    <div class="filter-btns">
+      <button class="filter-btn active" data-status="all" onclick="filterServices('all')">Todos</button>
+      <button class="filter-btn" data-status="active" onclick="filterServices('active')">Activos</button>
+      <button class="filter-btn" data-status="draft" onclick="filterServices('draft')">Borrador</button>
+      <button class="filter-btn" data-status="paused" onclick="filterServices('paused')">Pausados</button>
+    </div>
+    <input class="search-input" type="text" placeholder="🔍 Buscar servicio..." id="search-input" oninput="searchServices()"/>
+  </div>
+
+  <div class="services-grid" id="services-grid">
+    <div style="color:var(--muted);font-size:.9rem;grid-column:1/-1;padding:2rem;text-align:center">Cargando servicios...</div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal">
+    <div class="modal-title">🗑 Eliminar servicio</div>
+    <div class="modal-text" id="confirm-text">¿Estás seguro de que quieres eliminar este servicio? Esta acción no se puede deshacer.</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeConfirm()">Cancelar</button>
+      <button class="btn btn-danger" id="btn-confirm-delete">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toast-text"></span></div>
+
+<script>
+  const SUPABASE_URL = 'https://lsougtrfsbpvadyikyfm.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxzb3VndHJmc2JwdmFkeWlreWZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2NzAyMTcsImV4cCI6MjA5MTI0NjIxN30.NeqCGj-b7nK9EBXBhpFN65fY4yYwqnuTpX_jigDV38s';
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const CATEGORIES = [
+    { id: 'design', label: 'Diseño Gráfico', icon: '🎨' },
+    { id: 'dev', label: 'Desarrollo Web', icon: '💻' },
+    { id: 'marketing', label: 'Marketing Digital', icon: '📣' },
+    { id: 'video', label: 'Video & Animación', icon: '🎬' },
+    { id: 'writing', label: 'Redacción & Traducción', icon: '✍️' },
+    { id: 'music', label: 'Música & Audio', icon: '🎵' },
+    { id: 'business', label: 'Negocios', icon: '💼' },
+    { id: 'ai', label: 'Servicios con IA', icon: '🤖' },
+  ];
+
+  const STATUS_LABELS = { active: 'Activo', draft: 'Borrador', paused: 'Pausado' };
+  let currentUser = null;
+  let allServices = [];
+  let currentFilter = 'all';
+  let pendingDeleteId = null;
+
+  function toast(msg, type='success') {
+    const el = document.getElementById('toast');
+    document.getElementById('toast-text').textContent = msg;
+    el.className = `toast ${type} show`;
+    setTimeout(() => el.className='toast', 3500);
+  }
+
+  function closeConfirm() { document.getElementById('confirm-modal').classList.remove('open'); pendingDeleteId = null; }
+
+  async function init() {
+    const { data: { user } } = await db.auth.getUser();
+    if (!user) { window.location.href = 'login.html'; return; }
+    currentUser = user;
+    await loadServices();
+  }
+
+  async function loadServices() {
+    const { data, error } = await db.from('services').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+    if (error) { toast('Error al cargar: '+error.message, 'error'); return; }
+    allServices = data || [];
+    updateStats();
+    renderServices();
+  }
+
+  function updateStats() {
+    const active = allServices.filter(s => s.status === 'active');
+    document.getElementById('stat-total').textContent = allServices.length;
+    document.getElementById('stat-active').textContent = active.length;
+    document.getElementById('stat-orders').textContent = allServices.reduce((a,s)=>a+(s.orders_count||0),0);
+    document.getElementById('stat-views').textContent = allServices.reduce((a,s)=>a+(s.views||0),0);
+  }
+
+  function filterServices(status) {
+    currentFilter = status;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.status === status));
+    renderServices();
+  }
+
+  function searchServices() {
+    renderServices();
+  }
+
+  function renderServices() {
+    const query = document.getElementById('search-input').value.toLowerCase();
+    let list = currentFilter === 'all' ? allServices : allServices.filter(s => s.status === currentFilter);
+    if (query) list = list.filter(s => s.title.toLowerCase().includes(query) || (s.description||'').toLowerCase().includes(query));
+
+    const grid = document.getElementById('services-grid');
+    if (!list.length) {
+      grid.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🛠</div>
+          <div class="empty-title">${allServices.length === 0 ? 'Crea tu primer servicio' : 'Sin resultados'}</div>
+          <div class="empty-text">${allServices.length === 0 ? 'Los compradores podrán encontrarte cuando publiques servicios.' : 'Prueba con otros filtros.'}</div>
+          ${allServices.length === 0 ? '<a href="create-service.html" class="btn btn-primary">+ Crear servicio</a>' : ''}
+        </div>
+      `;
+      return;
+    }
+
+    grid.innerHTML = list.map(s => {
+      const cat = CATEGORIES.find(c => c.id === s.category);
+      return `
+        <div class="service-card">
+          <div class="sc-cover">
+            ${s.cover_emoji || '🎨'}
+            <span class="sc-status-badge status-${s.status}">${STATUS_LABELS[s.status]||s.status}</span>
+          </div>
+          <div class="sc-body">
+            <div class="sc-cat">${cat ? `${cat.icon} ${cat.label}` : s.category || 'Sin categoría'}</div>
+            <div class="sc-title">${s.title}</div>
+            <div class="sc-metrics">
+              <div class="sc-metric"><div class="sc-metric-val">${s.orders_count||0}</div><div class="sc-metric-label">Pedidos</div></div>
+              <div class="sc-metric"><div class="sc-metric-val">${s.views||0}</div><div class="sc-metric-label">Vistas</div></div>
+              <div class="sc-metric"><div class="sc-metric-val">${(s.rating||5).toFixed(1)}</div><div class="sc-metric-label">Rating</div></div>
+              <div class="sc-metric"><div class="sc-metric-val" style="color:var(--accent2)">€${parseFloat(s.price_from||0).toFixed(0)}</div><div class="sc-metric-label">Desde</div></div>
+            </div>
+            <div class="sc-footer">
+              <a href="service.html?id=${s.id}" class="btn btn-ghost btn-sm">👁 Ver</a>
+              <a href="create-service.html?edit=${s.id}" class="btn btn-ghost btn-sm">✏️ Editar</a>
+              ${s.status === 'active'
+                ? `<button class="btn btn-warning btn-sm" onclick="changeStatus('${s.id}','paused')">⏸ Pausar</button>`
+                : `<button class="btn btn-success btn-sm" onclick="changeStatus('${s.id}','active')">▶ Activar</button>`
+              }
+              <button class="btn btn-danger btn-sm" onclick="confirmDelete('${s.id}','${s.title.replace(/'/g,'')}')">🗑</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function changeStatus(id, newStatus) {
+    const { error } = await db.from('services').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) { toast('Error: '+error.message, 'error'); return; }
+    const s = allServices.find(s=>s.id===id);
+    if (s) s.status = newStatus;
+    updateStats();
+    renderServices();
+    toast(`Servicio ${newStatus === 'active' ? 'activado' : 'pausado'}`);
+  }
+
+  function confirmDelete(id, title) {
+    pendingDeleteId = id;
+    document.getElementById('confirm-text').textContent = `¿Eliminar "${title}"? Esta acción no se puede deshacer y perderás todas las estadísticas.`;
+    document.getElementById('confirm-modal').classList.add('open');
+  }
+
+  document.getElementById('btn-confirm-delete').onclick = async () => {
+    if (!pendingDeleteId) return;
+    const btn = document.getElementById('btn-confirm-delete');
+    btn.disabled = true; btn.textContent = 'Eliminando...';
+    const { error } = await db.from('services').delete().eq('id', pendingDeleteId);
+    btn.disabled = false; btn.textContent = 'Eliminar';
+    if (error) { toast('Error: '+error.message, 'error'); return; }
+    allServices = allServices.filter(s=>s.id!==pendingDeleteId);
+    closeConfirm();
+    updateStats();
+    renderServices();
+    toast('Servicio eliminado');
+  };
+
+  document.getElementById('confirm-modal').addEventListener('click', e => { if(e.target===e.currentTarget) closeConfirm(); });
+
+  init();
+</script>
+</body>
+</html>

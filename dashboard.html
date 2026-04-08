@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mi Panel — FreelanceMarket</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0f; --surface: #13131a; --surface2: #1c1c28;
+      --border: #2a2a3a; --accent: #7c5cfc; --accent2: #fc5c7d;
+      --accent-glow: rgba(124,92,252,0.25); --text: #f0f0f8;
+      --text-muted: #8888a8; --success: #22d3a0; --warning: #fbbf24;
+      --font-display: 'Syne', sans-serif; --font-body: 'DM Sans', sans-serif;
+      --sidebar-w: 240px; --radius: 14px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-body); display: flex; min-height: 100vh; }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh;
+      z-index: 50;
+      overflow-y: auto;   /* ← KEY FIX: sidebar scrolls independently */
+    }
+    /* hide scrollbar visually but keep functionality */
+    .sidebar::-webkit-scrollbar { width: 0; }
+
+    .sidebar-logo {
+      font-family: var(--font-display); font-size: 1.2rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      padding: 1.5rem 1.5rem 1.5rem; border-bottom: 1px solid var(--border);
+      text-decoration: none; display: block;
+    }
+    .sidebar-nav { flex: 1; padding: 1rem 0; }
+    .nav-item {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.7rem 1.5rem; color: var(--text-muted);
+      text-decoration: none; font-size: 0.9rem; font-weight: 500;
+      transition: all 0.2s; cursor: pointer; border: none; background: none; width: 100%;
+    }
+    .nav-item:hover { color: var(--text); background: var(--surface2); }
+    .nav-item.active { color: var(--accent); background: rgba(124,92,252,0.1); border-right: 3px solid var(--accent); }
+    .nav-item .icon { font-size: 1rem; width: 20px; text-align: center; }
+    .nav-section { padding: 1.2rem 1.5rem 0.4rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+    .sidebar-user {
+      padding: 1.5rem; border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 0.75rem;
+      position: sticky; bottom: 0; background: var(--surface); /* stays visible at bottom */
+    }
+    .user-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.85rem; color: #fff; flex-shrink: 0;
+    }
+    .user-info { overflow: hidden; }
+    .user-name { font-size: 0.88rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-role { font-size: 0.75rem; color: var(--text-muted); }
+    .logout-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem; margin-left: auto; }
+    .logout-btn:hover { color: var(--accent2); }
+
+    /* MAIN */
+    .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+    .topbar {
+      padding: 1.2rem 2rem; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface); position: sticky; top: 0; z-index: 40;
+    }
+    .topbar-title { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.55rem 1.2rem; border-radius: 50px; font-family: var(--font-body);
+      font-size: 0.85rem; font-weight: 500; cursor: pointer; border: none;
+      transition: all 0.2s; text-decoration: none;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; box-shadow: 0 4px 16px var(--accent-glow);
+    }
+    .btn-primary:hover { transform: translateY(-1px); }
+
+    .content { padding: 2rem; flex: 1; }
+
+    /* STATS */
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.5rem;
+    }
+    .stat-card .label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; }
+    .stat-card .value { font-family: var(--font-display); font-size: 1.8rem; font-weight: 800; }
+    .stat-card .change { font-size: 0.78rem; color: var(--success); margin-top: 0.25rem; }
+
+    /* PANELS */
+    .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.5rem;
+    }
+    .panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.2rem;
+    }
+    .panel-title { font-family: var(--font-display); font-weight: 600; font-size: 1rem; }
+    .panel-link { font-size: 0.8rem; color: var(--accent); text-decoration: none; }
+    .panel-link:hover { text-decoration: underline; }
+
+    /* Service item */
+    .service-item {
+      display: flex; align-items: center; gap: 1rem;
+      padding: 0.85rem 0; border-bottom: 1px solid var(--border);
+    }
+    .service-item:last-child { border-bottom: none; }
+    .service-emoji {
+      width: 44px; height: 44px; border-radius: 10px;
+      background: var(--surface2); display: flex; align-items: center;
+      justify-content: center; font-size: 1.2rem; flex-shrink: 0;
+    }
+    .service-info { flex: 1; overflow: hidden; }
+    .service-name { font-size: 0.9rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .service-meta { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem; }
+    .service-price { font-family: var(--font-display); font-weight: 700; color: var(--accent); font-size: 0.95rem; }
+
+    /* Order item */
+    .order-item {
+      display: flex; align-items: center; gap: 1rem;
+      padding: 0.85rem 0; border-bottom: 1px solid var(--border);
+    }
+    .order-item:last-child { border-bottom: none; }
+    .order-badge {
+      padding: 0.25rem 0.6rem; border-radius: 50px;
+      font-size: 0.72rem; font-weight: 600;
+    }
+    .badge-pending { background: rgba(251,191,36,0.15); color: var(--warning); }
+    .badge-active { background: rgba(124,92,252,0.15); color: var(--accent); }
+    .badge-done { background: rgba(34,211,160,0.15); color: var(--success); }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.9rem; }
+    .empty-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+
+    @media (max-width: 1024px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+      .main { margin-left: 0; }
+      .panels { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <a href="index.html" class="sidebar-logo">FreelanceMarket</a>
+  <nav class="sidebar-nav">
+    <div class="nav-section">Principal</div>
+    <a class="nav-item active" href="dashboard.html"><span class="icon">🏠</span> Panel</a>
+    <a class="nav-item" href="explore.html"><span class="icon">🔍</span> Explorar</a>
+    <a class="nav-item" href="chat.html"><span class="icon">💬</span> Mensajes<span id="unreadBadge" style="margin-left:auto;background:var(--accent2);color:#fff;font-size:0.7rem;padding:2px 7px;border-radius:50px;display:none">0</span></a>
+
+    <div class="nav-section">Vendedor</div>
+    <a class="nav-item" href="create-service.html"><span class="icon">➕</span> Crear servicio</a>
+    <a class="nav-item" href="my-services.html"><span class="icon">📦</span> Mis servicios</a>
+    <a class="nav-item" href="orders.html"><span class="icon">📋</span> Pedidos</a>
+
+    <div class="nav-section">Cuenta</div>
+    <a class="nav-item" href="profile.html"><span class="icon">👤</span> Mi perfil</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar" id="avatarEl">?</div>
+    <div class="user-info">
+      <div class="user-name" id="userNameEl">Cargando...</div>
+      <div class="user-role">Freelancer</div>
+    </div>
+    <button class="logout-btn" onclick="logout()" title="Cerrar sesión">⏻</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="greetingEl">Buenos días 👋</div>
+    <a href="create-service.html" class="btn btn-primary">+ Nuevo servicio</a>
+  </div>
+
+  <div class="content">
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="label">Ingresos totales</div>
+        <div class="value" id="statRevenue">€0</div>
+        <div class="change">↑ Este mes</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Pedidos activos</div>
+        <div class="value" id="statOrders">0</div>
+        <div class="change">↑ En progreso</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Mis servicios</div>
+        <div class="value" id="statServices">0</div>
+        <div class="change">Publicados</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Valoración media</div>
+        <div class="value" id="statRating">—</div>
+        <div class="change">★ Estrellas</div>
+      </div>
+    </div>
+
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Mis servicios</div>
+          <a href="my-services.html" class="panel-link">Ver todos →</a>
+        </div>
+        <div id="myServicesList">
+          <div class="empty-state"><div class="empty-icon">📦</div>Aún no tienes servicios publicados.<br/><a href="create-service.html" style="color:var(--accent)">Crea tu primer servicio</a></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Pedidos recientes</div>
+          <a href="orders.html" class="panel-link">Ver todos →</a>
+        </div>
+        <div id="ordersList">
+          <div class="empty-state"><div class="empty-icon">📋</div>No tienes pedidos aún.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const sb = getSupabaseClient();
+let currentUser = null;
+
+async function init() {
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) { window.location.href = 'login.html'; return; }
+  currentUser = user;
+
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? 'Buenos días' : hour < 18 ? 'Buenas tardes' : 'Buenas noches';
+  const uname = user.user_metadata?.username || user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuario';
+  document.getElementById('greetingEl').textContent = `${greet}, ${uname} 👋`;
+  document.getElementById('userNameEl').textContent = uname;
+  document.getElementById('avatarEl').textContent = uname.substring(0,2).toUpperCase();
+
+  await Promise.all([loadMyServices(), loadOrders(), loadUnread()]);
+}
+
+async function loadMyServices() {
+  const { data } = await sb.from('services').select('*').eq('user_id', currentUser.id).limit(5);
+  const el = document.getElementByfId('myServicesList');
+  document.getElementById('statServices').textContent = data?.length || 0;
+  if (!data || data.length === 0) return;
+  el.innerHTML = '';
+  data.forEach(s => {
+    el.innerHTML += `
+    <div class="service-item">
+      <div class="service-emoji">${s.cover_emoji || '🎨'}</div>
+      <div class="service-info">
+        <div class="service-name">${s.title}</div>
+        <div class="service-meta">${s.status === 'active' ? '🟢 Activo' : '⚪ Borrador'}</div>
+      </div>
+      <div class="service-price">€${s.price_from}</div>
+    </div>`;
+  });
+}
+
+async function loadOrders() {
+  const { data } = await sb.from('orders')
+    .select('*, services(title, cover_emoji)')
+    .or(`buyer_id.eq.${currentUser.id},seller_id.eq.${currentUser.id}`)
+    .order('created_at', { ascending: false }).limit(5);
+
+  const el = document.getElementById('ordersList');
+  const active = data?.filter(o => o.status === 'in_progress').length || 0;
+  document.getElementById('statOrders').textContent = active;
+
+  if (!data || data.length === 0) return;
+  el.innerHTML = '';
+  data.forEach(o => {
+    const badgeClass = o.status === 'pending' ? 'badge-pending' : o.status === 'in_progress' ? 'badge-active' : 'badge-done';
+    const badgeLabel = o.status === 'pending' ? 'Pendiente' : o.status === 'in_progress' ? 'En progreso' : 'Completado';
+    el.innerHTML += `
+    <div class="order-item">
+      <div class="service-emoji">${o.services?.cover_emoji || '📋'}</div>
+      <div class="service-info">
+        <div class="service-name">${o.services?.title || 'Pedido'}</div>
+        <div class="service-meta">€${o.amount}</div>
+      </div>
+      <span class="order-badge ${badgeClass}">${badgeLabel}</span>
+    </div>`;
+  });
+}
+
+async function loadUnread() {
+  const { count } = await sb.from('messages')
+    .select('*', { count: 'exact', head: true })
+    .eq('receiver_id', currentUser.id)
+    .eq('read', false);
+  if (count > 0) {
+    const badge = document.getElementById('unreadBadge');
+    badge.textContent = count;
+    badge.style.display = 'inline';
+  }
+}
+
+async function logout() {
+  await sb.auth.signOut();
+  window.location.href = 'index.html';
+}
+
+init();
+</script>
+</body>
+</html>
