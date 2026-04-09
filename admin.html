@@ -475,7 +475,14 @@ function filterData(arr, keys) {
 
 // ── USERS ──
 async function loadUsers() {
-  const { data } = await sb.from('profiles').select('*').order('created_at', { ascending: false });
+  const { data, error } = await sb.rpc('get_users_with_email');
+  if (error) {
+    // fallback sin emails si la función no existe aún
+    const { data: fallback } = await sb.from('profiles').select('*').order('created_at', { ascending: false });
+    allData.users = fallback || [];
+    renderUsersTable(fallback || []);
+    return;
+  }
   allData.users = data || [];
   renderUsersTable(data || []);
 }
