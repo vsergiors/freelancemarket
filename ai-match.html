@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Match — FreelanceMarket</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #04040a;
+      --surface: #0e0e1a;
+      --surface2: #16162a;
+      --surface3: #1e1e35;
+      --border: #252540;
+      --accent: #7c5cfc;
+      --accent2: #fc5c7d;
+      --accent3: #5cf4fc;
+      --glow: rgba(124,92,252,0.4);
+      --glow3: rgba(92,244,252,0.25);
+      --text: #eeeeff;
+      --text-muted: #7878aa;
+      --text-dim: #4a4a6a;
+      --success: #22d3a0;
+      --font-display: 'Syne', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+      --radius: 16px;
+      --sidebar-w: 240px;
+    }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: var(--font-body); display: flex; min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Animated background particles */
+    .bg-canvas {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      overflow: hidden;
+    }
+    .particle {
+      position: absolute; border-radius: 50%;
+      animation: float linear infinite;
+      opacity: 0;
+    }
+    @keyframes float {
+      0% { transform: translateY(100vh) scale(0); opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 0.6; }
+      100% { transform: translateY(-20vh) scale(1); opacity: 0; }
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: var(--sidebar-w); background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      position: fixed; top: 0; left: 0; height: 100vh;
+      padding: 1.5rem 0; z-index: 50;
+    }
+    .sidebar-logo {
+      font-family: var(--font-display); font-size: 1.2rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      padding: 0 1.5rem 1.5rem; border-bottom: 1px solid var(--border);
+      text-decoration: none; display: block;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.7rem 1.5rem; color: var(--text-muted);
+      text-decoration: none; font-size: 0.88rem; font-weight: 500;
+      transition: all 0.2s;
+    }
+    .nav-item:hover { color: var(--text); background: var(--surface2); }
+    .nav-item.active { color: var(--accent); background: rgba(124,92,252,0.1); border-right: 3px solid var(--accent); }
+    .nav-section { padding: 1.2rem 1.5rem 0.4rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); }
+    .nav-badge {
+      margin-left: auto; background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; font-size: 0.6rem; padding: 2px 6px; border-radius: 50px; font-weight: 700;
+    }
+
+    /* MAIN */
+    .main { margin-left: var(--sidebar-w); flex: 1; position: relative; z-index: 1; }
+
+    /* TOPBAR */
+    .topbar {
+      padding: 1.2rem 2.5rem; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(4,4,10,0.8); backdrop-filter: blur(20px);
+      position: sticky; top: 0; z-index: 40;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 1rem; }
+    .ai-badge {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      background: linear-gradient(135deg, rgba(124,92,252,0.2), rgba(92,244,252,0.1));
+      border: 1px solid rgba(92,244,252,0.3);
+      color: var(--accent3); padding: 0.3rem 0.8rem; border-radius: 50px;
+      font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em;
+    }
+    .pulse-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--accent3);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.7); } }
+    .topbar-title { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; }
+
+    /* CONTENT */
+    .content { padding: 2.5rem; max-width: 900px; }
+
+    /* HERO SECTION */
+    .ai-hero {
+      text-align: center; padding: 3rem 2rem 2rem;
+      position: relative; margin-bottom: 3rem;
+    }
+    .ai-hero-glow {
+      position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+      width: 600px; height: 300px;
+      background: radial-gradient(ellipse at center, rgba(124,92,252,0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .ai-orb {
+      width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 1.5rem;
+      background: conic-gradient(from 0deg, var(--accent), var(--accent3), var(--accent2), var(--accent));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem; position: relative;
+      animation: spin 8s linear infinite;
+      box-shadow: 0 0 40px rgba(124,92,252,0.5);
+    }
+    @keyframes spin { to { filter: hue-rotate(360deg); } }
+    .ai-orb::after {
+      content: ''; position: absolute; inset: 3px; border-radius: 50%;
+      background: var(--bg); display: flex; align-items: center; justify-content: center;
+    }
+    .ai-orb span { position: relative; z-index: 1; }
+    .ai-hero h1 {
+      font-family: var(--font-display); font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 800; line-height: 1.15; margin-bottom: 1rem;
+    }
+    .ai-hero h1 em {
+      font-style: normal;
+      background: linear-gradient(135deg, var(--accent), var(--accent3));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .ai-hero p { color: var(--text-muted); font-size: 1rem; max-width: 520px; margin: 0 auto; }
+
+    /* STEPS */
+    .steps-nav {
+      display: flex; gap: 0; margin-bottom: 2rem;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 5px; overflow: hidden;
+    }
+    .step-tab {
+      flex: 1; padding: 0.65rem 1rem; border-radius: 12px;
+      font-size: 0.82rem; font-weight: 500; color: var(--text-muted);
+      cursor: pointer; transition: all 0.2s; text-align: center;
+      display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+    }
+    .step-tab.active { background: var(--surface2); color: var(--text); }
+    .step-tab.done { color: var(--success); }
+    .step-tab .step-num {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--surface3); font-size: 0.7rem;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .step-tab.active .step-num { background: var(--accent); color: #fff; }
+    .step-tab.done .step-num { background: var(--success); color: #fff; }
+
+    /* FORM PANELS */
+    .form-panel { display: none; }
+    .form-panel.active { display: block; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    .panel-title { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .panel-desc { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 2rem; }
+
+    /* FIELD */
+    .field { margin-bottom: 1.4rem; }
+    .field label { display: block; font-size: 0.8rem; font-weight: 500; color: var(--text-muted); margin-bottom: 0.5rem; }
+    .field input, .field textarea, .field select {
+      width: 100%; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; color: var(--text); font-family: var(--font-body);
+      font-size: 0.92rem; padding: 0.8rem 1.1rem; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .field input:focus, .field textarea:focus, .field select:focus {
+      border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,92,252,0.1);
+    }
+    .field input::placeholder, .field textarea::placeholder { color: var(--text-dim); }
+    .field textarea { resize: vertical; min-height: 110px; line-height: 1.6; }
+    .field select option { background: var(--surface2); }
+
+    /* BUDGET SLIDER */
+    .budget-display {
+      font-family: var(--font-display); font-size: 2rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-bottom: 0.75rem;
+    }
+    input[type="range"] {
+      width: 100%; appearance: none; height: 4px;
+      background: linear-gradient(90deg, var(--accent) var(--pct, 30%), var(--border) var(--pct, 30%));
+      border-radius: 2px; outline: none; cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none; width: 20px; height: 20px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      box-shadow: 0 0 10px var(--glow);
+    }
+
+    /* SKILL CHIPS */
+    .chips-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+    .chip {
+      padding: 0.4rem 0.9rem; border-radius: 50px;
+      border: 1px solid var(--border); background: var(--surface);
+      font-size: 0.8rem; color: var(--text-muted); cursor: pointer;
+      transition: all 0.2s;
+    }
+    .chip:hover { border-color: var(--accent); color: var(--accent); }
+    .chip.selected {
+      border-color: var(--accent); background: rgba(124,92,252,0.15);
+      color: var(--accent);
+    }
+
+    /* URGENCY OPTIONS */
+    .urgency-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 0.75rem; }
+    .urgency-card {
+      padding: 1rem; border-radius: 12px;
+      border: 1px solid var(--border); background: var(--surface);
+      cursor: pointer; transition: all 0.2s; text-align: center;
+    }
+    .urgency-card:hover { border-color: var(--accent); }
+    .urgency-card.selected { border-color: var(--accent); background: rgba(124,92,252,0.1); }
+    .urgency-icon { font-size: 1.5rem; margin-bottom: 0.4rem; display: block; }
+    .urgency-label { font-size: 0.82rem; font-weight: 600; margin-bottom: 0.2rem; }
+    .urgency-sub { font-size: 0.72rem; color: var(--text-muted); }
+
+    /* BTN */
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.75rem 1.6rem; border-radius: 50px; font-family: var(--font-body);
+      font-size: 0.9rem; font-weight: 500; cursor: pointer; border: none;
+      transition: all 0.25s; text-decoration: none;
+    }
+    .btn-ghost { background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; box-shadow: 0 4px 20px var(--glow);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px var(--glow); }
+    .btn-ai {
+      background: linear-gradient(135deg, var(--surface2), var(--surface3));
+      border: 1px solid rgba(92,244,252,0.3); color: var(--accent3);
+      box-shadow: 0 0 20px rgba(92,244,252,0.1);
+    }
+    .btn-ai:hover { box-shadow: 0 0 30px rgba(92,244,252,0.2); transform: translateY(-1px); }
+    .form-nav { display: flex; gap: 0.75rem; margin-top: 2rem; }
+
+    /* ============ ANALYZING SCREEN ============ */
+    .analyzing-screen {
+      text-align: center; padding: 4rem 2rem; display: none;
+    }
+    .analyzing-screen.active { display: block; animation: fadeIn 0.5s ease; }
+    .analyze-orb {
+      width: 120px; height: 120px; border-radius: 50%;
+      margin: 0 auto 2rem; position: relative;
+    }
+    .analyze-ring {
+      position: absolute; inset: 0; border-radius: 50%;
+      border: 2px solid transparent;
+      border-top-color: var(--accent);
+      border-right-color: var(--accent3);
+      animation: ringRotate 1.2s linear infinite;
+    }
+    .analyze-ring:nth-child(2) {
+      inset: 10px;
+      border-top-color: var(--accent2);
+      border-left-color: var(--accent);
+      animation-duration: 1.8s; animation-direction: reverse;
+    }
+    .analyze-ring:nth-child(3) {
+      inset: 22px;
+      border-bottom-color: var(--accent3);
+      animation-duration: 2.4s;
+    }
+    .analyze-center {
+      position: absolute; inset: 30px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent3));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.8rem;
+      animation: breathe 2s ease-in-out infinite;
+    }
+    @keyframes ringRotate { to { transform: rotate(360deg); } }
+    @keyframes breathe { 0%,100% { opacity: 0.9; } 50% { opacity: 0.6; } }
+    .analyze-title { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .analyze-sub { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 2.5rem; }
+    .analyze-steps { display: flex; flex-direction: column; gap: 0.6rem; max-width: 360px; margin: 0 auto; }
+    .analyze-step {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.6rem 1rem; border-radius: 10px;
+      background: var(--surface); border: 1px solid var(--border);
+      font-size: 0.85rem; text-align: left;
+      transition: all 0.3s;
+    }
+    .analyze-step.done { border-color: rgba(34,211,160,0.3); background: rgba(34,211,160,0.05); color: var(--success); }
+    .analyze-step.active { border-color: rgba(124,92,252,0.4); background: rgba(124,92,252,0.08); color: var(--accent); }
+    .step-icon { width: 20px; text-align: center; flex-shrink: 0; }
+
+    /* ============ RESULTS ============ */
+    .results-screen { display: none; }
+    .results-screen.active { display: block; animation: fadeIn 0.5s ease; }
+    .results-header { margin-bottom: 2rem; }
+    .results-header h2 { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .results-header p { color: var(--text-muted); font-size: 0.88rem; }
+
+    .match-cards { display: flex; flex-direction: column; gap: 1.2rem; }
+    .match-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.5rem;
+      transition: all 0.25s; position: relative; overflow: hidden;
+    }
+    .match-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent3));
+      opacity: 0; transition: opacity 0.25s;
+    }
+    .match-card:hover { border-color: rgba(124,92,252,0.4); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+    .match-card:hover::before { opacity: 1; }
+    .match-card.top-pick { border-color: rgba(124,92,252,0.5); background: linear-gradient(135deg, var(--surface), rgba(124,92,252,0.05)); }
+    .match-card.top-pick::before { opacity: 1; }
+
+    .match-top { display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; }
+    .match-avatar {
+      width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-display); font-weight: 800; font-size: 1.1rem; color: #fff;
+    }
+    .match-info { flex: 1; }
+    .match-name-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.2rem; flex-wrap: wrap; }
+    .match-name { font-family: var(--font-display); font-weight: 700; font-size: 1rem; }
+    .top-badge {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; font-size: 0.65rem; font-weight: 700;
+      padding: 2px 8px; border-radius: 50px; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .match-title { font-size: 0.82rem; color: var(--text-muted); }
+    .match-score-wrap { text-align: right; flex-shrink: 0; }
+    .match-score {
+      font-family: var(--font-display); font-size: 1.8rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent3));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      line-height: 1;
+    }
+    .match-score-label { font-size: 0.7rem; color: var(--text-muted); }
+
+    /* Score bar */
+    .score-bar-wrap { margin-bottom: 1rem; }
+    .score-bar-label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.3rem; display: flex; justify-content: space-between; }
+    .score-bar {
+      height: 5px; background: var(--surface3); border-radius: 3px; overflow: hidden;
+    }
+    .score-bar-fill {
+      height: 100%; border-radius: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent3));
+      transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .match-skills { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
+    .match-skill {
+      font-size: 0.72rem; padding: 0.2rem 0.6rem; border-radius: 50px;
+      background: rgba(124,92,252,0.1); border: 1px solid rgba(124,92,252,0.2);
+      color: var(--accent);
+    }
+    .match-why {
+      font-size: 0.82rem; color: var(--text-muted); line-height: 1.6;
+      padding: 0.75rem 1rem; background: var(--surface2); border-radius: 10px;
+      border-left: 3px solid var(--accent); margin-bottom: 1rem;
+      font-style: italic;
+    }
+    .match-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; }
+    .match-meta { display: flex; gap: 1.2rem; }
+    .meta-item { font-size: 0.78rem; color: var(--text-muted); }
+    .meta-item strong { color: var(--text); }
+    .match-actions { display: flex; gap: 0.5rem; }
+    .btn-sm {
+      padding: 0.45rem 1rem; border-radius: 50px; font-size: 0.8rem;
+      font-family: var(--font-body); cursor: pointer; border: none; transition: all 0.2s;
+    }
+    .btn-sm-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
+    .btn-sm-ghost { background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); }
+    .btn-sm-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* AI INSIGHT BOX */
+    .ai-insight {
+      background: linear-gradient(135deg, rgba(92,244,252,0.06), rgba(124,92,252,0.06));
+      border: 1px solid rgba(92,244,252,0.2); border-radius: var(--radius);
+      padding: 1.2rem 1.5rem; margin-bottom: 1.5rem;
+      display: flex; gap: 1rem; align-items: flex-start;
+    }
+    .ai-insight-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 0.1rem; }
+    .ai-insight-title { font-size: 0.82rem; font-weight: 600; color: var(--accent3); margin-bottom: 0.3rem; }
+    .ai-insight-text { font-size: 0.82rem; color: var(--text-muted); line-height: 1.6; }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; }
+      .urgency-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Floating particles -->
+<div class="bg-canvas" id="bgCanvas"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <a href="index.html" class="sidebar-logo">FreelanceMarket</a>
+  <nav style="padding:1rem 0">
+    <div class="nav-section">Principal</div>
+    <a class="nav-item" href="dashboard.html"><span>🏠</span> Panel</a>
+    <a class="nav-item" href="explore.html"><span>🔍</span> Explorar</a>
+    <a class="nav-item" href="chat.html"><span>💬</span> Mensajes</a>
+    <div class="nav-section">Innovación</div>
+    <a class="nav-item active" href="ai-match.html"><span>🤖</span> AI Match <span class="nav-badge">NUEVO</span></a>
+    <a class="nav-item" href="collab.html"><span>🤝</span> Collab <span class="nav-badge">NUEVO</span></a>
+    <div class="nav-section">Vendedor</div>
+    <a class="nav-item" href="create-service.html"><span>➕</span> Crear servicio</a>
+    <a class="nav-item" href="orders.html"><span>📋</span> Pedidos</a>
+    <div class="nav-section">Cuenta</div>
+    <a class="nav-item" href="profile.html"><span>👤</span> Mi perfil</a>
+  </nav>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-title">AI Match</div>
+      <div class="ai-badge"><div class="pulse-dot"></div> IA Activa</div>
+    </div>
+    <a href="explore.html" style="color:var(--text-muted);font-size:0.85rem;text-decoration:none;">Buscar manualmente →</a>
+  </div>
+
+  <div class="content">
+
+    <!-- HERO -->
+    <div class="ai-hero">
+      <div class="ai-hero-glow"></div>
+      <div class="ai-orb"><span>🤖</span></div>
+      <h1>Encuentra tu freelancer<br/><em>perfecto en segundos</em></h1>
+      <p>Nuestra IA analiza tu proyecto y te conecta con los freelancers más compatibles de toda la plataforma.</p>
+    </div>
+
+    <!-- STEP TABS -->
+    <div class="steps-nav" id="stepsTabs">
+      <div class="step-tab active" data-step="1"><span class="step-num">1</span> Tu proyecto</div>
+      <div class="step-tab" data-step="2"><span class="step-num">2</span> Requisitos</div>
+      <div class="step-tab" data-step="3"><span class="step-num">3</span> Preferencias</div>
+    </div>
+
+    <!-- PANEL 1: Project description -->
+    <div class="form-panel active" id="panel1">
+      <div class="panel-title">Cuéntanos tu proyecto</div>
+      <p class="panel-desc">Cuanto más detallado seas, mejores coincidencias encontrará la IA.</p>
+
+      <div class="field">
+        <label>¿Qué necesitas hacer? *</label>
+        <textarea id="projectDesc" placeholder="Ej: Necesito un diseñador para crear la identidad visual completa de mi startup de tecnología. Incluye logo, paleta de colores, tipografía y guía de marca. El estilo debe ser moderno, minimalista y transmitir confianza..."></textarea>
+      </div>
+      <div class="field">
+        <label>Categoría principal</label>
+        <select id="projectCat">
+          <option value="">Selecciona categoría</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>¿Cuál es tu presupuesto?</label>
+        <div class="budget-display" id="budgetDisplay">€500</div>
+        <input type="range" id="budgetSlider" min="10" max="5000" value="500" step="10" oninput="updateBudget(this)"/>
+        <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-dim);margin-top:0.4rem">
+          <span>€10</span><span>€5.000+</span>
+        </div>
+      </div>
+
+      <div class="form-nav">
+        <button class="btn btn-primary" onclick="goToPanel(2)">Siguiente →</button>
+      </div>
+    </div>
+
+    <!-- PANEL 2: Skills & requirements -->
+    <div class="form-panel" id="panel2">
+      <div class="panel-title">Habilidades requeridas</div>
+      <p class="panel-desc">Selecciona las habilidades clave que necesita el freelancer.</p>
+
+      <div class="field">
+        <label>Habilidades técnicas</label>
+        <div class="chips-grid" id="skillsChips"></div>
+      </div>
+      <div class="field">
+        <label>Idiomas requeridos</label>
+        <div class="chips-grid" id="langChips">
+          <div class="chip" onclick="toggleChip(this)">🇪🇸 Español</div>
+          <div class="chip" onclick="toggleChip(this)">🇬🇧 Inglés</div>
+          <div class="chip" onclick="toggleChip(this)">🇫🇷 Francés</div>
+          <div class="chip" onclick="toggleChip(this)">🇩🇪 Alemán</div>
+          <div class="chip" onclick="toggleChip(this)">🇧🇷 Portugués</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Experiencia mínima del freelancer</label>
+        <select id="experienceLevel">
+          <option value="any">Cualquier nivel</option>
+          <option value="junior">Junior (0-2 años)</option>
+          <option value="mid">Intermedio (2-5 años)</option>
+          <option value="senior">Senior (5+ años)</option>
+          <option value="expert">Experto (10+ años)</option>
+        </select>
+      </div>
+
+      <div class="form-nav">
+        <button class="btn btn-ghost" onclick="goToPanel(1)">← Anterior</button>
+        <button class="btn btn-primary" onclick="goToPanel(3)">Siguiente →</button>
+      </div>
+    </div>
+
+    <!-- PANEL 3: Preferences -->
+    <div class="form-panel" id="panel3">
+      <div class="panel-title">Preferencias finales</div>
+      <p class="panel-desc">Ajusta los últimos detalles para que la IA afine los resultados.</p>
+
+      <div class="field">
+        <label>Urgencia del proyecto</label>
+        <div class="urgency-grid">
+          <div class="urgency-card selected" onclick="selectUrgency(this)">
+            <span class="urgency-icon">⚡</span>
+            <div class="urgency-label">Urgente</div>
+            <div class="urgency-sub">Entrega en 24-48h</div>
+          </div>
+          <div class="urgency-card" onclick="selectUrgency(this)">
+            <span class="urgency-icon">📅</span>
+            <div class="urgency-label">Normal</div>
+            <div class="urgency-sub">Esta semana</div>
+          </div>
+          <div class="urgency-card" onclick="selectUrgency(this)">
+            <span class="urgency-icon">🌿</span>
+            <div class="urgency-label">Flexible</div>
+            <div class="urgency-sub">Sin prisa</div>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label>¿Algo más que deba saber la IA?</label>
+        <input type="text" id="extraNotes" placeholder="Ej: Prefiero freelancers europeos, el proyecto puede escalar..."/>
+      </div>
+
+      <div class="form-nav">
+        <button class="btn btn-ghost" onclick="goToPanel(2)">← Anterior</button>
+        <button class="btn btn-ai" onclick="startAnalysis()">🤖 Analizar con IA →</button>
+      </div>
+    </div>
+
+    <!-- ANALYZING SCREEN -->
+    <div class="analyzing-screen" id="analyzingScreen">
+      <div class="analyze-orb">
+        <div class="analyze-ring"></div>
+        <div class="analyze-ring"></div>
+        <div class="analyze-ring"></div>
+        <div class="analyze-center">🤖</div>
+      </div>
+      <div class="analyze-title">Analizando tu proyecto...</div>
+      <div class="analyze-sub">La IA está procesando <strong id="serviceCount">0</strong> servicios disponibles</div>
+      <div class="analyze-steps" id="analyzeSteps">
+        <div class="analyze-step" id="astep1"><span class="step-icon">⏳</span> Procesando descripción del proyecto</div>
+        <div class="analyze-step" id="astep2"><span class="step-icon">⏳</span> Analizando habilidades requeridas</div>
+        <div class="analyze-step" id="astep3"><span class="step-icon">⏳</span> Evaluando disponibilidad y valoraciones</div>
+        <div class="analyze-step" id="astep4"><span class="step-icon">⏳</span> Calculando compatibilidad semántica</div>
+        <div class="analyze-step" id="astep5"><span class="step-icon">⏳</span> Ordenando resultados óptimos</div>
+      </div>
+    </div>
+
+    <!-- RESULTS SCREEN -->
+    <div class="results-screen" id="resultsScreen">
+      <div class="results-header">
+        <h2>✨ <span id="matchCount">0</span> freelancers compatibles</h2>
+        <p>Ordenados por compatibilidad con tu proyecto · <a href="#" onclick="resetForm()" style="color:var(--accent)">Nueva búsqueda</a></p>
+      </div>
+
+      <div class="ai-insight" id="aiInsight">
+        <div class="ai-insight-icon">💡</div>
+        <div>
+          <div class="ai-insight-title">Análisis IA</div>
+          <div class="ai-insight-text" id="aiInsightText">Generando análisis...</div>
+        </div>
+      </div>
+
+      <div class="match-cards" id="matchCards"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const sb = getSupabaseClient();
+let currentUser = null;
+let selectedSkills = [];
+
+const SKILLS_BY_CAT = {
+  design: ['Illustrator','Photoshop','Figma','Logo Design','Branding','UI/UX','3D Modeling','Motion Graphics','Canva'],
+  dev: ['React','Vue','Node.js','Python','Laravel','WordPress','Flutter','React Native','PostgreSQL','AWS'],
+  marketing: ['SEO','Google Ads','Meta Ads','Email Marketing','Copywriting','Analytics','TikTok Ads','Influencer Marketing'],
+  video: ['After Effects','Premiere Pro','Final Cut','DaVinci Resolve','Motion Graphics','Subtitling','VFX'],
+  writing: ['Copywriting','Blog Writing','Traducción EN-ES','SEO Writing','Ghostwriting','Proofreading'],
+  music: ['Mezcla','Masterización','Producción Musical','Podcast','Voz en Off','Jingles'],
+  business: ['Business Plan','Excel','Consultoría','Presentaciones','Análisis de datos'],
+  ai: ['ChatGPT','Midjourney','Stable Diffusion','LangChain','Fine-tuning','Prompt Engineering'],
+};
+
+const AI_INSIGHTS = [
+  "Tu proyecto tiene alta compatibilidad con diseñadores especializados en identidad de marca. Los freelancers mejor valorados de esta categoría tienen una tasa de satisfacción del 97%.",
+  "La IA detectó requisitos técnicos específicos. Te recomendamos revisar el portfolio de cada candidato antes de contactarlos.",
+  "Basándonos en tu presupuesto y urgencia, los freelancers seleccionados pueden comenzar en menos de 24h.",
+  "Encontramos patrones en proyectos similares: los clientes que especificaron referencias visuales recibieron resultados 40% más alineados.",
+];
+
+async function init() {
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) { window.location.href = 'login.html'; return; }
+  currentUser = user;
+
+  // Populate categories
+  const catSel = document.getElementById('projectCat');
+  CATEGORIES.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id; opt.textContent = `${c.icon} ${c.label}`;
+    catSel.appendChild(opt);
+  });
+
+  catSel.addEventListener('change', function() {
+    renderSkillChips(this.value);
+  });
+
+  // Particles
+  createParticles();
+}
+
+function createParticles() {
+  const canvas = document.getElementById('bgCanvas');
+  for (let i = 0; i < 20; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const size = Math.random() * 4 + 2;
+    p.style.cssText = `
+      width:${size}px; height:${size}px;
+      left:${Math.random()*100}%;
+      background: ${Math.random() > 0.5 ? 'var(--accent)' : 'var(--accent3)'};
+      animation-duration: ${Math.random()*15+10}s;
+      animation-delay: ${Math.random()*10}s;
+    `;
+    canvas.appendChild(p);
+  }
+}
+
+function renderSkillChips(cat) {
+  const grid = document.getElementById('skillsChips');
+  const skills = SKILLS_BY_CAT[cat] || SKILLS_BY_CAT.dev;
+  selectedSkills = [];
+  grid.innerHTML = '';
+  skills.forEach(skill => {
+    const div = document.createElement('div');
+    div.className = 'chip';
+    div.textContent = skill;
+    div.onclick = () => toggleChip(div);
+    grid.appendChild(div);
+  });
+}
+
+function toggleChip(el) {
+  el.classList.toggle('selected');
+}
+
+function selectUrgency(el) {
+  document.querySelectorAll('.urgency-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function updateBudget(input) {
+  const val = parseInt(input.value);
+  document.getElementById('budgetDisplay').textContent = val >= 5000 ? '€5.000+' : `€${val.toLocaleString('es')}`;
+  const pct = ((val - 10) / (5000 - 10)) * 100;
+  input.style.setProperty('--pct', pct + '%');
+}
+
+function goToPanel(n) {
+  if (n === 2 && !document.getElementById('projectDesc').value.trim()) {
+    alert('Por favor describe tu proyecto.'); return;
+  }
+  document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`panel${n}`).classList.add('active');
+  document.querySelectorAll('.step-tab').forEach((t, i) => {
+    t.classList.remove('active', 'done');
+    if (i + 1 === n) t.classList.add('active');
+    else if (i + 1 < n) t.classList.add('done');
+  });
+}
+
+async function startAnalysis() {
+  // Hide form panels and steps
+  document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('stepsTabs').style.display = 'none';
+  document.querySelector('.ai-hero').style.display = 'none';
+
+  const analyzing = document.getElementById('analyzingScreen');
+  analyzing.classList.add('active');
+
+  // Get total services count
+  const { count } = await sb.from('services').select('*', { count: 'exact', head: true }).eq('status', 'active');
+  let displayCount = 0;
+  const countEl = document.getElementById('serviceCount');
+  const countInterval = setInterval(() => {
+    displayCount = Math.min(displayCount + Math.floor(Math.random() * 50 + 20), count || 1247);
+    countEl.textContent = displayCount.toLocaleString('es');
+    if (displayCount >= (count || 1247)) clearInterval(countInterval);
+  }, 80);
+
+  // Animate steps
+  const steps = ['astep1','astep2','astep3','astep4','astep5'];
+  for (let i = 0; i < steps.length; i++) {
+    await delay(700 + Math.random() * 500);
+    if (i > 0) {
+      const prev = document.getElementById(steps[i-1]);
+      prev.classList.remove('active');
+      prev.classList.add('done');
+      prev.querySelector('.step-icon').textContent = '✓';
+    }
+    document.getElementById(steps[i]).classList.add('active');
+    document.getElementById(steps[i]).querySelector('.step-icon').textContent = '⟳';
+  }
+
+  await delay(800);
+  // Mark last step done
+  const last = document.getElementById(steps[steps.length-1]);
+  last.classList.remove('active'); last.classList.add('done');
+  last.querySelector('.step-icon').textContent = '✓';
+
+  await delay(400);
+  analyzing.classList.remove('active');
+
+  // Fetch & display results
+  await showResults();
+}
+
+async function showResults() {
+  const desc = document.getElementById('projectDesc').value;
+  const cat = document.getElementById('projectCat').value;
+  const budget = parseInt(document.getElementById('budgetSlider').value);
+
+  let query = sb.from('services')
+    .select('*, profiles(id, username, avatar_url)')
+    .eq('status', 'active')
+    .lte('price_from', budget)
+    .limit(5);
+
+  if (cat) query = query.eq('category', cat);
+
+  const { data: services } = await query.order('rating', { ascending: false });
+
+  const resultsScreen = document.getElementById('resultsScreen');
+  resultsScreen.classList.add('active');
+
+  // AI insight
+  document.getElementById('aiInsightText').textContent = AI_INSIGHTS[Math.floor(Math.random() * AI_INSIGHTS.length)];
+
+  const results = services || generateMockResults();
+  document.getElementById('matchCount').textContent = results.length;
+
+  const cardsEl = document.getElementById('matchCards');
+  cardsEl.innerHTML = '';
+
+  results.forEach((s, i) => {
+    const score = Math.round(98 - i * 7 + Math.random() * 3);
+    const initials = (s.profiles?.username || s.username || 'FM').substring(0,2).toUpperCase();
+    const gradients = [
+      'linear-gradient(135deg,#7c5cfc,#fc5c7d)',
+      'linear-gradient(135deg,#5cf4fc,#7c5cfc)',
+      'linear-gradient(135deg,#fc5c7d,#fca05c)',
+      'linear-gradient(135deg,#22d3a0,#5cf4fc)',
+      'linear-gradient(135deg,#fca05c,#fc5c7d)',
+    ];
+
+    const card = document.createElement('div');
+    card.className = 'match-card' + (i === 0 ? ' top-pick' : '');
+    card.innerHTML = `
+      <div class="match-top">
+        <div class="match-avatar" style="background:${gradients[i % gradients.length]}">${initials}</div>
+        <div class="match-info">
+          <div class="match-name-row">
+            <span class="match-name">${s.profiles?.username || s.username || 'Freelancer'}</span>
+            ${i === 0 ? '<span class="top-badge">⭐ Top Pick</span>' : ''}
+          </div>
+          <div class="match-title">${s.title}</div>
+        </div>
+        <div class="match-score-wrap">
+          <div class="match-score">${score}%</div>
+          <div class="match-score-label">compatibilidad</div>
+        </div>
+      </div>
+      <div class="score-bar-wrap">
+        <div class="score-bar-label"><span>Compatibilidad con tu proyecto</span><span>${score}%</span></div>
+        <div class="score-bar"><div class="score-bar-fill" style="width:0%" data-target="${score}%"></div></div>
+      </div>
+      <div class="match-skills">
+        ${(s.tags || ['Diseño','Creatividad','Puntualidad']).slice(0,5).map(t => `<span class="match-skill">${t}</span>`).join('')}
+      </div>
+      <div class="match-why">
+        💡 La IA detectó que este freelancer tiene experiencia previa en proyectos similares al tuyo, con un tiempo de respuesta promedio de 2h y valoración de ${s.rating || '5.0'} estrellas.
+      </div>
+      <div class="match-footer">
+        <div class="match-meta">
+          <div class="meta-item">Desde <strong>€${s.price_from}</strong></div>
+          <div class="meta-item">Rating <strong>★ ${s.rating || '5.0'}</strong></div>
+          <div class="meta-item">Pedidos <strong>${s.orders_count || 0}</strong></div>
+        </div>
+        <div class="match-actions">
+          <button class="btn-sm btn-sm-ghost" onclick="window.location.href='chat.html?with=${s.profiles?.id || ''}'">💬 Contactar</button>
+          <button class="btn-sm btn-sm-primary" onclick="window.location.href='service.html?id=${s.id}'">Ver servicio</button>
+        </div>
+      </div>`;
+    cardsEl.appendChild(card);
+  });
+
+  // Animate score bars
+  setTimeout(() => {
+    document.querySelectorAll('.score-bar-fill').forEach(bar => {
+      bar.style.width = bar.dataset.target;
+    });
+  }, 100);
+}
+
+function generateMockResults() {
+  return [
+    { id: '1', title: 'Diseñaré tu identidad visual completa', profiles: { id: '1', username: 'Carlos_Design' }, price_from: 299, rating: 4.9, orders_count: 47, tags: ['Branding','Logo','Figma','Identidad','Tipografía'] },
+    { id: '2', title: 'Crearé tu logo profesional en 48h', profiles: { id: '2', username: 'Maria_Creative' }, price_from: 89, rating: 4.8, orders_count: 132, tags: ['Logo','Illustrator','Vectorial','Revisiones','Rápido'] },
+    { id: '3', title: 'Diseño de marca premium con guía de estilo', profiles: { id: '3', username: 'ArturoStudio' }, price_from: 450, rating: 5.0, orders_count: 23, tags: ['Brand Guide','Color','Tipografía','Premium'] },
+  ];
+}
+
+function resetForm() {
+  document.getElementById('resultsScreen').classList.remove('active');
+  document.getElementById('analyzingScreen').classList.remove('active');
+  document.getElementById('stepsTabs').style.display = 'flex';
+  document.querySelector('.ai-hero').style.display = 'block';
+  goToPanel(1);
+  document.querySelectorAll('.step-tab').forEach((t,i) => {
+    t.classList.remove('done','active');
+    if (i === 0) t.classList.add('active');
+  });
+  document.querySelectorAll('.analyze-step').forEach(s => {
+    s.classList.remove('done','active');
+    s.querySelector('.step-icon').textContent = '⏳';
+  });
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// Default skills
+renderSkillChips('design');
+init();
+</script>
+</body>
+</html>
