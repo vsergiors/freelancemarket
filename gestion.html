@@ -143,16 +143,6 @@
 
     @media (max-width: 768px) { .sidebar { display: none; } .main { margin-left: 0; } }
 
-  a[href="emails.html"] {
-  color: var(--muted);
-  text-decoration: none;
-  font-size: .9rem;
-  transition: color .2s;
-}
-
-a[href="emails.html"]:hover {
-  color: var(--text);
-}
   </style>
 </head>
 <body>
@@ -189,7 +179,7 @@ a[href="emails.html"]:hover {
 
   <div class="content">
     <div class="tab-row">
-      <a href="emails.html"> Datos</a>
+      <div class="tab" onclick="window.location.href='emails.html'">📊 Datos</div
       <div class="tab active" onclick="showSection('users')">👥 Usuarios</div>
       <div class="tab" onclick="showSection('reports')">🚨 Reportes</div>
       <div class="tab" onclick="showSection('bans')">🔨 Baneados</div>
