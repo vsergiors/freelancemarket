@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Usuarios — FreelanceMarket Admin</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #080810;
+      --surface: #0f0f1a;
+      --surface2: #171724;
+      --surface3: #1f1f2e;
+      --border: #252535;
+      --border2: #2e2e42;
+      --accent: #7c6af7;
+      --accent2: #f7c26a;
+      --text: #eeeeff;
+      --muted: #6a6a8a;
+      --muted2: #9090b0;
+      --success: #4ade80;
+      --warning: #fbbf24;
+      --danger: #f87171;
+      --info: #60a5fa;
+      --owner-color: #e879f9;
+      --radius: 12px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── ACCESS GATE ── */
+    #access-gate {
+      position: fixed; inset: 0; z-index: 999;
+      background: var(--bg);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 1rem; text-align: center; padding: 2rem;
+    }
+    #access-gate .gate-icon { font-size: 3.5rem; margin-bottom: .5rem; }
+    #access-gate h2 { font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 800; }
+    #access-gate p { color: var(--muted); max-width: 340px; line-height: 1.6; }
+    #access-gate.hidden { display: none; }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem;
+      background: rgba(8,8,16,.92);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-left { display: flex; align-items: center; gap: 1.25rem; }
+    .nav-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.1rem; color: var(--text); text-decoration: none; }
+    .nav-logo span { color: var(--accent); }
+    .nav-sep { width: 1px; height: 20px; background: var(--border2); }
+    .nav-section {
+      font-size: .78rem; font-weight: 600; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--owner-color);
+      background: rgba(232,121,249,.08); border: 1px solid rgba(232,121,249,.2);
+      padding: .2rem .7rem; border-radius: 6px;
+    }
+    .nav-right { display: flex; align-items: center; gap: .75rem; }
+    .owner-badge {
+      display: flex; align-items: center; gap: .4rem;
+      font-size: .78rem; font-weight: 600;
+      color: var(--owner-color);
+      background: rgba(232,121,249,.08); border: 1px solid rgba(232,121,249,.2);
+      padding: .3rem .8rem; border-radius: 20px;
+    }
+    .owner-badge::before { content: '◆'; font-size: .55rem; }
+    .btn { display: inline-flex; align-items: center; gap: .4rem; padding: .45rem 1rem; border-radius: 7px; font-family: 'DM Sans', sans-serif; font-size: .82rem; font-weight: 500; cursor: pointer; border: none; transition: all .2s; text-decoration: none; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border2); }
+    .btn-ghost:hover { color: var(--text); border-color: var(--accent); }
+    .btn-sm { padding: .28rem .75rem; font-size: .76rem; border-radius: 6px; }
+    .btn-danger { background: rgba(248,113,113,.1); color: var(--danger); border: 1px solid rgba(248,113,113,.25); }
+    .btn-danger:hover { background: rgba(248,113,113,.2); }
+    .btn-owner { background: rgba(232,121,249,.1); color: var(--owner-color); border: 1px solid rgba(232,121,249,.25); }
+    .btn-owner:hover { background: rgba(232,121,249,.2); }
+
+    /* ── CONTAINER ── */
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem 4rem; }
+
+    /* ── PAGE HEADER ── */
+    .page-header { padding: 2rem 0 1.75rem; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; }
+    .page-header h1 { font-family: 'Syne', sans-serif; font-size: 1.75rem; font-weight: 800; }
+    .page-header p { color: var(--muted); font-size: .88rem; margin-top: .2rem; }
+
+    /* ── STATS ── */
+    .stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 2rem; }
+    @media(max-width:800px) { .stats-row { grid-template-columns: repeat(2,1fr); } }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.1rem 1.25rem;
+      display: flex; flex-direction: column; gap: .2rem;
+    }
+    .stat-val { font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 800; }
+    .stat-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .stat-card.c-total .stat-val { color: var(--accent); }
+    .stat-card.c-owners .stat-val { color: var(--owner-color); }
+    .stat-card.c-sellers .stat-val { color: var(--accent2); }
+    .stat-card.c-users .stat-val { color: var(--info); }
+    .stat-card.c-new .stat-val { color: var(--success); }
+
+    /* ── TOOLBAR ── */
+    .toolbar {
+      display: flex; gap: .75rem; align-items: center; flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+    }
+    .search-wrap { position: relative; flex: 1; min-width: 200px; }
+    .search-wrap input {
+      width: 100%; background: var(--surface); border: 1px solid var(--border2);
+      border-radius: 8px; padding: .55rem 1rem .55rem 2.5rem;
+      color: var(--text); font-family: 'DM Sans', sans-serif; font-size: .875rem;
+      transition: border-color .2s;
+    }
+    .search-wrap input:focus { outline: none; border-color: var(--accent); }
+    .search-wrap .search-icon { position: absolute; left: .85rem; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: .9rem; pointer-events: none; }
+    .role-filter { display: flex; gap: .4rem; flex-wrap: wrap; }
+    .role-btn { padding: .35rem .9rem; border-radius: 20px; border: 1px solid var(--border2); background: transparent; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: .78rem; cursor: pointer; transition: all .2s; }
+    .role-btn.active { color: #fff; border-color: transparent; }
+    .role-btn[data-role="all"].active { background: var(--accent); }
+    .role-btn[data-role="owner"].active { background: var(--owner-color); }
+    .role-btn[data-role="seller"].active { background: #a16207; }
+    .role-btn[data-role="user"].active { background: #1d4ed8; }
+    .count-badge {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--muted); font-size: .75rem; font-family: 'DM Mono', monospace;
+      padding: .3rem .7rem; border-radius: 6px; white-space: nowrap;
+    }
+
+    /* ── TABLE ── */
+    .table-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: var(--surface2); border-bottom: 1px solid var(--border2); }
+    thead th {
+      padding: .85rem 1.25rem; text-align: left;
+      font-size: .72rem; font-weight: 600; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--muted);
+      white-space: nowrap;
+    }
+    thead th.sortable { cursor: pointer; user-select: none; }
+    thead th.sortable:hover { color: var(--text); }
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background .15s;
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--surface2); }
+    tbody td { padding: .85rem 1.25rem; font-size: .875rem; vertical-align: middle; }
+
+    /* AVATAR */
+    .user-cell { display: flex; align-items: center; gap: .85rem; }
+    .user-avatar {
+      width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--accent), #a78bfa);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: .85rem; color: #fff;
+      overflow: hidden; border: 2px solid var(--border2);
+    }
+    .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .user-name { font-weight: 500; font-size: .88rem; }
+    .user-username { font-size: .75rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+
+    /* EMAIL */
+    .email-cell { font-family: 'DM Mono', monospace; font-size: .8rem; color: var(--muted2); }
+    .copy-btn {
+      background: none; border: none; cursor: pointer; color: var(--muted);
+      font-size: .78rem; padding: .15rem .4rem; border-radius: 4px; transition: all .15s;
+    }
+    .copy-btn:hover { color: var(--accent); background: rgba(124,106,247,.1); }
+
+    /* ROLE BADGE */
+    .role-badge {
+      display: inline-flex; align-items: center; gap: .3rem;
+      padding: .22rem .7rem; border-radius: 20px;
+      font-size: .72rem; font-weight: 600; letter-spacing: .03em; white-space: nowrap;
+    }
+    .role-badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+    .rb-owner { background: rgba(232,121,249,.12); color: var(--owner-color); border: 1px solid rgba(232,121,249,.25); }
+    .rb-seller { background: rgba(247,194,106,.12); color: var(--accent2); border: 1px solid rgba(247,194,106,.25); }
+    .rb-user { background: rgba(96,165,250,.1); color: var(--info); border: 1px solid rgba(96,165,250,.2); }
+
+    /* DATE */
+    .date-cell { font-family: 'DM Mono', monospace; font-size: .78rem; color: var(--muted); }
+
+    /* ACTIONS */
+    .actions-cell { display: flex; gap: .4rem; flex-wrap: nowrap; }
+
+    /* ROLE SELECT */
+    .role-select {
+      background: var(--surface3); border: 1px solid var(--border2);
+      color: var(--text); border-radius: 6px; padding: .25rem .5rem;
+      font-family: 'DM Sans', sans-serif; font-size: .78rem; cursor: pointer;
+    }
+    .role-select:focus { outline: none; border-color: var(--accent); }
+
+    /* EMPTY / LOADING */
+    .table-msg { padding: 4rem; text-align: center; color: var(--muted); }
+    .table-msg .msg-icon { font-size: 2.5rem; margin-bottom: .75rem; }
+    .spinner {
+      width: 32px; height: 32px; border: 3px solid var(--border2);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin .8s linear infinite; margin: 0 auto 1rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── CONFIRM MODAL ── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,.8); backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity .25s; padding: 1rem;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: 18px; padding: 2rem; width: 100%; max-width: 420px;
+      transform: translateY(16px); transition: transform .25s;
+    }
+    .modal-overlay.open .modal { transform: translateY(0); }
+    .modal-icon { font-size: 2.5rem; margin-bottom: .75rem; }
+    .modal-title { font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 800; margin-bottom: .5rem; }
+    .modal-text { color: var(--muted); font-size: .875rem; line-height: 1.6; margin-bottom: 1.5rem; }
+    .modal-text strong { color: var(--text); }
+    .modal-actions { display: flex; gap: .75rem; }
+    .modal-actions .btn { flex: 1; justify-content: center; padding: .6rem; }
+    .btn-primary { background: var(--accent); color: #fff; border: none; }
+    .btn-primary:hover { background: #6a58e5; }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed; bottom: 2rem; right: 2rem; z-index: 300;
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: 12px; padding: .85rem 1.25rem;
+      display: flex; align-items: center; gap: .6rem;
+      transform: translateY(80px); opacity: 0; transition: all .3s;
+      max-width: 320px; box-shadow: 0 8px 32px rgba(0,0,0,.6); font-size: .85rem;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-left: 3px solid var(--success); }
+    .toast.error { border-left: 3px solid var(--danger); }
+    .toast.info { border-left: 3px solid var(--info); }
+
+    @media(max-width:700px) {
+      .hide-mobile { display: none; }
+      thead th:nth-child(3), tbody td:nth-child(3),
+      thead th:nth-child(5), tbody td:nth-child(5) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ACCESS GATE (se oculta cuando confirma que es owner) -->
+<div id="access-gate">
+  <div class="gate-icon">🔒</div>
+  <h2>Verificando acceso...</h2>
+  <p>Comprobando permisos de owner</p>
+</div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-left">
+    <a href="index.html" class="nav-logo">Freelance<span>Market</span></a>
+    <div class="nav-sep"></div>
+    <span class="nav-section">Admin · Usuarios</span>
+  </div>
+  <div class="nav-right">
+    <span class="owner-badge" id="nav-owner-name">Owner</span>
+    <a href="dashboard.html" class="btn btn-ghost">Dashboard</a>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="container">
+  <div class="page-header">
+    <div>
+      <h1>👥 Gestión de usuarios</h1>
+      <p>Usuarios registrados vía Supabase Auth · Solo visible para owners</p>
+    </div>
+    <button class="btn btn-ghost" onclick="loadUsers()" id="btn-refresh">↻ Actualizar</button>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card c-total"><div class="stat-val" id="s-total">—</div><div class="stat-label">Total usuarios</div></div>
+    <div class="stat-card c-owners"><div class="stat-val" id="s-owners">—</div><div class="stat-label">Owners</div></div>
+    <div class="stat-card c-sellers"><div class="stat-val" id="s-sellers">—</div><div class="stat-label">Vendedores</div></div>
+    <div class="stat-card c-users"><div class="stat-val" id="s-users">—</div><div class="stat-label">Compradores</div></div>
+    <div class="stat-card c-new"><div class="stat-val" id="s-new">—</div><div class="stat-label">Nuevos (7d)</div></div>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search-input" placeholder="Buscar por email, nombre o username..." oninput="renderTable()"/>
+    </div>
+    <div class="role-filter">
+      <button class="role-btn active" data-role="all" onclick="setRoleFilter('all')">Todos</button>
+      <button class="role-btn" data-role="owner" onclick="setRoleFilter('owner')">◆ Owner</button>
+      <button class="role-btn" data-role="seller" onclick="setRoleFilter('seller')">Vendedor</button>
+      <button class="role-btn" data-role="user" onclick="setRoleFilter('user')">Usuario</button>
+    </div>
+    <span class="count-badge" id="count-badge">0 usuarios</span>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Usuario</th>
+          <th>Email</th>
+          <th class="hide-mobile">Rol</th>
+          <th class="hide-mobile">Registro</th>
+          <th class="hide-mobile">Último acceso</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="users-tbody">
+        <tr>
+          <td colspan="6">
+            <div class="table-msg">
+              <div class="spinner"></div>
+              <div>Cargando usuarios...</div>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal">
+    <div class="modal-icon" id="modal-icon">⚠️</div>
+    <div class="modal-title" id="modal-title">Confirmar acción</div>
+    <div class="modal-text" id="modal-text"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-danger" id="btn-modal-confirm">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span id="toast-icon"></span>
+  <span id="toast-text"></span>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://lsougtrfsbpvadyikyfm.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxzb3VndHJmc2JwdmFkeWlreWZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2NzAyMTcsImV4cCI6MjA5MTI0NjIxN30.NeqCGj-b7nK9EBXBhpFN65fY4yYwqnuTpX_jigDV38s';
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let currentUser = null;
+  let allUsers = [];
+  let roleFilter = 'all';
+  let pendingAction = null;
+
+  // ── UTILS ──────────────────────────────────────────────
+  function initials(name) {
+    if (!name) return '?';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  function isRecent(iso) {
+    if (!iso) return false;
+    return (Date.now() - new Date(iso).getTime()) < 7 * 24 * 60 * 60 * 1000;
+  }
+
+  function toast(msg, type = 'success', icon = '') {
+    const el = document.getElementById('toast');
+    document.getElementById('toast-text').textContent = msg;
+    document.getElementById('toast-icon').textContent = icon;
+    el.className = `toast ${type} show`;
+    setTimeout(() => el.className = 'toast', 3500);
+  }
+
+  function closeModal() {
+    document.getElementById('confirm-modal').classList.remove('open');
+    pendingAction = null;
+  }
+
+  // ── AUTH GATE ──────────────────────────────────────────
+  async function checkOwnerAccess() {
+    const gate = document.getElementById('access-gate');
+
+    const { data: { user }, error: authErr } = await db.auth.getUser();
+    if (authErr || !user) {
+      gate.innerHTML = `
+        <div class="gate-icon">🔒</div>
+        <h2>Acceso restringido</h2>
+        <p>Debes iniciar sesión para acceder a esta sección.</p>
+        <a href="login.html" style="margin-top:1rem;padding:.65rem 1.5rem;background:var(--accent);color:#fff;border-radius:8px;text-decoration:none;font-weight:600">Iniciar sesión</a>
+      `;
+      return false;
+    }
+
+    currentUser = user;
+
+    // Check role in profiles
+    const { data: profile, error: profErr } = await db
+      .from('profiles')
+      .select('role, full_name, username')
+      .eq('id', user.id)
+      .single();
+
+    if (profErr || profile?.role !== 'owner') {
+      gate.innerHTML = `
+        <div class="gate-icon">⛔</div>
+        <h2>Sin permisos</h2>
+        <p>Esta página es exclusiva para usuarios con rango <strong style="color:var(--owner-color)">owner</strong>. Tu cuenta no tiene acceso.</p>
+        <a href="dashboard.html" style="margin-top:1rem;padding:.65rem 1.5rem;background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:8px;text-decoration:none;font-weight:600">Volver al dashboard</a>
+      `;
+      return false;
+    }
+
+    const ownerName = profile.full_name || profile.username || user.email;
+    document.getElementById('nav-owner-name').textContent = ownerName;
+
+    gate.classList.add('hidden');
+    return true;
+  }
+
+  // ── LOAD USERS (via RPC) ───────────────────────────────
+  async function loadUsers() {
+    const btn = document.getElementById('btn-refresh');
+    btn.textContent = '↻ Cargando...';
+    btn.disabled = true;
+
+    const { data, error } = await db.rpc('get_all_users_for_owner');
+
+    btn.textContent = '↻ Actualizar';
+    btn.disabled = false;
+
+    if (error) {
+      toast('Error al cargar usuarios: ' + error.message, 'error', '❌');
+      document.getElementById('users-tbody').innerHTML = `
+        <tr><td colspan="6">
+          <div class="table-msg">
+            <div class="msg-icon">⚠️</div>
+            <div style="color:var(--danger)">${error.message}</div>
+            <div style="margin-top:.5rem;font-size:.8rem">Asegúrate de haber ejecutado el SQL del schema_owner_roles.sql</div>
+          </div>
+        </td></tr>
+      `;
+      return;
+    }
+
+    allUsers = data || [];
+    updateStats();
+    renderTable();
+    toast(`${allUsers.length} usuarios cargados`, 'success', '✓');
+  }
+
+  // ── STATS ──────────────────────────────────────────────
+  function updateStats() {
+    const owners = allUsers.filter(u => u.role === 'owner').length;
+    const sellers = allUsers.filter(u => u.role === 'seller' || u.is_seller).length;
+    const users = allUsers.filter(u => !u.role || u.role === 'user').length;
+    const newUsers = allUsers.filter(u => isRecent(u.created_at)).length;
+
+    document.getElementById('s-total').textContent = allUsers.length;
+    document.getElementById('s-owners').textContent = owners;
+    document.getElementById('s-sellers').textContent = sellers;
+    document.getElementById('s-users').textContent = users;
+    document.getElementById('s-new').textContent = newUsers;
+  }
+
+  // ── FILTERS ───────────────────────────────────────────
+  function setRoleFilter(role) {
+    roleFilter = role;
+    document.querySelectorAll('.role-btn').forEach(b => b.classList.toggle('active', b.dataset.role === role));
+    renderTable();
+  }
+
+  // ── RENDER TABLE ──────────────────────────────────────
+  function renderTable() {
+    const query = document.getElementById('search-input').value.toLowerCase().trim();
+    let list = allUsers;
+
+    if (roleFilter !== 'all') {
+      list = list.filter(u => {
+        if (roleFilter === 'owner') return u.role === 'owner';
+        if (roleFilter === 'seller') return u.role === 'seller' || (u.is_seller && u.role !== 'owner');
+        return !u.role || u.role === 'user';
+      });
+    }
+
+    if (query) {
+      list = list.filter(u =>
+        (u.email || '').toLowerCase().includes(query) ||
+        (u.full_name || '').toLowerCase().includes(query) ||
+        (u.username || '').toLowerCase().includes(query)
+      );
+    }
+
+    document.getElementById('count-badge').textContent = `${list.length} usuario${list.length !== 1 ? 's' : ''}`;
+
+    const tbody = document.getElementById('users-tbody');
+    if (!list.length) {
+      tbody.innerHTML = `
+        <tr><td colspan="6">
+          <div class="table-msg">
+            <div class="msg-icon">🔍</div>
+            <div>Sin resultados</div>
+          </div>
+        </td></tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = list.map(u => {
+      const name = u.full_name || u.username || '—';
+      const role = u.role || 'user';
+      const isMe = u.id === currentUser.id;
+      const roleClass = { owner: 'rb-owner', seller: 'rb-seller', user: 'rb-user' }[role] || 'rb-user';
+      const roleLabel = { owner: '◆ Owner', seller: '⭐ Vendedor', user: '👤 Usuario' }[role] || role;
+
+      const avatarHtml = u.avatar_url
+        ? `<img src="${u.avatar_url}" alt="${name}" onerror="this.parentElement.textContent='${initials(name)}'"/>`
+        : initials(name);
+
+      // Avatar gradient per role
+      const avatarStyle = role === 'owner'
+        ? 'background:linear-gradient(135deg,#9333ea,#e879f9)'
+        : role === 'seller'
+          ? 'background:linear-gradient(135deg,#b45309,#f7c26a)'
+          : 'background:linear-gradient(135deg,#1d4ed8,#60a5fa)';
+
+      return `
+        <tr>
+          <td>
+            <div class="user-cell">
+              <div class="user-avatar" style="${avatarStyle}">${avatarHtml}</div>
+              <div>
+                <div class="user-name">${name} ${isMe ? '<span style="font-size:.7rem;color:var(--owner-color)">(tú)</span>' : ''}</div>
+                <div class="user-username">@${u.username || '—'}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="email-cell">${u.email || '—'}</span>
+            <button class="copy-btn" onclick="copyEmail('${u.email}')" title="Copiar email">⎘</button>
+          </td>
+          <td class="hide-mobile">
+            <span class="role-badge ${roleClass}">${roleLabel}</span>
+          </td>
+          <td class="date-cell hide-mobile">${formatDate(u.created_at)}</td>
+          <td class="date-cell hide-mobile">${u.last_sign_in ? formatDate(u.last_sign_in) : '<span style="color:var(--muted)">Nunca</span>'}</td>
+          <td>
+            <div class="actions-cell">
+              ${!isMe ? `
+                <select class="role-select" onchange="promptRoleChange('${u.id}','${name}',this)" title="Cambiar rol">
+                  <option value="user" ${role==='user'?'selected':''}>Usuario</option>
+                  <option value="seller" ${role==='seller'?'selected':''}>Vendedor</option>
+                  <option value="owner" ${role==='owner'?'selected':''}>Owner</option>
+                </select>
+                <button class="btn btn-danger btn-sm" onclick="promptDelete('${u.id}','${u.email}')" title="Eliminar usuario">🗑</button>
+              ` : '<span style="color:var(--muted);font-size:.75rem">—</span>'}
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // ── COPY EMAIL ────────────────────────────────────────
+  async function copyEmail(email) {
+    try {
+      await navigator.clipboard.writeText(email);
+      toast(`${email} copiado`, 'info', '⎘');
+    } catch {
+      toast('No se pudo copiar', 'error', '❌');
+    }
+  }
+
+  // ── CHANGE ROLE ──────────────────────────────────────
+  function promptRoleChange(userId, name, selectEl) {
+    const newRole = selectEl.value;
+    const roleLabel = { owner: 'Owner ◆', seller: 'Vendedor', user: 'Usuario' }[newRole];
+
+    pendingAction = async () => {
+      const { error } = await db.rpc('set_user_role', { target_id: userId, new_role: newRole });
+      if (error) { toast('Error: ' + error.message, 'error', '❌'); return; }
+      const u = allUsers.find(u => u.id === userId);
+      if (u) u.role = newRole;
+      updateStats();
+      renderTable();
+      toast(`Rol de ${name} cambiado a ${roleLabel}`, 'success', '✓');
+    };
+
+    document.getElementById('modal-icon').textContent = '🔄';
+    document.getElementById('modal-title').textContent = 'Cambiar rol';
+    document.getElementById('modal-text').innerHTML = `¿Cambiar el rol de <strong>${name}</strong> a <strong>${roleLabel}</strong>?`;
+    document.getElementById('btn-modal-confirm').className = 'btn btn-primary';
+    document.getElementById('btn-modal-confirm').textContent = 'Confirmar';
+    document.getElementById('confirm-modal').classList.add('open');
+  }
+
+  // ── DELETE USER ──────────────────────────────────────
+  function promptDelete(userId, email) {
+    pendingAction = async () => {
+      const { error } = await db.rpc('delete_user_as_owner', { target_id: userId });
+      if (error) { toast('Error: ' + error.message, 'error', '❌'); return; }
+      allUsers = allUsers.filter(u => u.id !== userId);
+      updateStats();
+      renderTable();
+      toast(`Usuario ${email} eliminado`, 'success', '✓');
+    };
+
+    document.getElementById('modal-icon').textContent = '🗑';
+    document.getElementById('modal-title').textContent = 'Eliminar usuario';
+    document.getElementById('modal-text').innerHTML = `¿Eliminar permanentemente la cuenta de <strong>${email}</strong>? Esta acción no se puede deshacer.`;
+    document.getElementById('btn-modal-confirm').className = 'btn btn-danger';
+    document.getElementById('btn-modal-confirm').textContent = 'Eliminar';
+    document.getElementById('confirm-modal').classList.add('open');
+  }
+
+  document.getElementById('btn-modal-confirm').onclick = async () => {
+    if (!pendingAction) return;
+    document.getElementById('btn-modal-confirm').disabled = true;
+    document.getElementById('btn-modal-confirm').textContent = 'Procesando...';
+    await pendingAction();
+    document.getElementById('btn-modal-confirm').disabled = false;
+    closeModal();
+  };
+
+  document.getElementById('confirm-modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+
+  // ── INIT ─────────────────────────────────────────────
+  (async () => {
+    const ok = await checkOwnerAccess();
+    if (ok) await loadUsers();
+  })();
+</script>
+</body>
+</html>
